@@ -76,5 +76,5 @@ class Model(object):
 			
 		return recons
 
-	def encode_ones(self, input):
-		     pass
+	def Encode_ones(self, input):
+		     return self.model.encoder(input)

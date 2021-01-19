@@ -21,18 +21,29 @@ class TGT(nn.Module):
 		if self.use_scaling:
 			self.gammas = nn.ParameterList([nn.Parameter(torch.ones(n_dim))])
 	
-	def forward(self, x, cluster, target):
+	def forward(self, x, cluster, target, k=None):
 		"""x  Tensor with shape [Batch size, n_dim]
 		cluster: (list of) int(s) for which delta to use 
 			(use a list if the batch is not homogeneous)"""
 # 		print(x)
 		initial = cluster
-		if initial == 0:
+		if initial == target:
+			d = torch.zeros((1, x.shape[1]))
+		elif initial == 0:
 			d = self.deltas[target - 1]
 		elif target == 0:
 			d = -1.0 * self.deltas[initial - 1]
 		else:
 			d = -1.0 * self.deltas[initial - 1] + self.deltas[target - 1]
+				
+		if k is not None:
+			d = truncate(d, k)
+		# if initial == 0:
+		# 	d = self.deltas[target - 1]
+		# elif target == 0:
+		# 	d = -1.0 * self.deltas[initial - 1]
+		# else:
+		# 	d = -1.0 * self.deltas[initial - 1] + self.deltas[target - 1]
 
 		if self.use_scaling:
 			return self.gammas[cluster]*x + self.deltas[cluster]
@@ -50,17 +61,17 @@ class Optimizer(object):
 		self.clip_val = clip_val
 
 	def clip(self, grad):
-		return torch.clip(grad, -1.0*self.clip_val, self.clip_val)
+		return torch.clip(torch.squeeze(grad), -1.0*self.clip_val, self.clip_val)
 
-	def step(self, initial, target):
+	def step(self, initial, target, grad):
 		if initial == 0:
-			self.model.deltas[target-1].data -= self.lr*self.clip(self.model.deltas[target-1].grad)
+			self.model.deltas[target-1].data -= self.lr*self.clip(grad)
 		elif target == 0:
-			self.model.deltas[initial - 1].data += self.lr*self.clip(self.model.deltas[initial-1].grad)
+			self.model.deltas[initial - 1].data += self.lr*self.clip(grad)
 		else:
-			#print("Gradients", self.model.deltas[initial-1].grad, self.model.deltas[target-1].grad)
-			self.model.deltas[initial - 1].data += self.lr * 0.5 * self.clip(self.model.deltas[initial-1].grad)
-			self.model.deltas[target - 1].data -= self.lr * 0.5 * self.clip(self.model.deltas[target-1].grad)
+			#print("Gradients", grad)
+			self.model.deltas[initial - 1].data += self.lr * 0.5 * self.clip(grad)
+			self.model.deltas[target - 1].data -= self.lr * 0.5 * self.clip(grad)
 
 
 	 
@@ -70,7 +81,8 @@ class Explain(object):
 		self.means = means
 		self.centers = centers
 
-	def explain(self, config):#model, means, centers):
+
+	def explain(self, config):
 		
 
 		lambda_global = config.lambda_global
@@ -108,16 +120,14 @@ class Explain(object):
 
 		print(list(tgt.parameters()))
 
-		#print(x_means, y_means)
-
 
 
 		
 		#we are not training the r function
-		for param in self.model.model.parameters():
-			param.requires_grad = False
+		# for param in self.model.model.parameters():
+		# 	param.requires_grad = False
 
-		criterion = nn.MSELoss()
+		criterion = nn.MSELoss(reduction="sum")
 
 		optimizer = Optimizer(tgt, lr=learning_rate, clip_val=clip_val)
 
@@ -141,29 +151,21 @@ class Explain(object):
 			p = x_means[initial]
 			t = y_means[target]
 
-			
-
-			tgt.zero_grad()
 			explained, d = tgt(p, initial, target)
 
 			
 
-			transformed = self.model.Encode(explained)
-
-			#print(p, t, d, transformed, d.requires_grad)
+			transformed = self.model.Encode_ones(explained.float())			
 
 			loss = criterion(transformed, t) + lambda_global*torch.mean(torch.abs(d))
+			deltas_grad = torch.autograd.grad(loss, [d])
 
-			#print(criterion(transformed, t).item(), lambda_global*torch.mean(torch.abs(d)))
-			
-			loss.backward()
+			grad = deltas_grad[0]
 
 			if iter == 0:
 				ema = loss.item()
 			else:
 				ema = discount * ema + (1 - discount) * loss.item()
-
-			print("iter: {}, ema: {}, initial: {}, target: {}".format(iter, ema, initial, target))
 
 			if ema < best_loss - tol:
 				best_iter = iter
@@ -173,9 +175,9 @@ class Explain(object):
 					best_deltas[i,:] = param.detach()
 				if verbose:
 					print("Retrieving the best deltas...")
-					print("iter: {}, ema: {}".format(iter, ema))
+					print("iter: {}, ema: {}, initial {}, target {}".format(iter, ema, initial, target))# best_iter, best_loss)); print(best_deltas); print(list(tgt.parameters()))
 
-			optimizer.step(initial, target)
+			optimizer.step(initial, target, grad)
 			
 			iter += 1
 
@@ -187,6 +189,8 @@ class Explain(object):
 		num_clusters = len(indices)
 
 		model = self.model
+
+		tgt = TGT(n_input, num_clusters, init_deltas=deltas)
 
 		# Define the objective function
 
@@ -202,20 +206,23 @@ class Explain(object):
 					x_target = x[indices[target]]
 					
 					# Construct the explanation between the initial and target regions
-					if initial == target:
-						d = torch.zeros((1, n_input))
-					elif initial == 0:
-						d = deltas[target - 1]
-					elif target == 0:
-						d = -1.0 * deltas[initial - 1]
-					else:
-						d = -1.0 * deltas[initial - 1] + deltas[target - 1]
+					# if initial == target:
+					# 	d = torch.zeros((1, n_input))
+					# elif initial == 0:
+					# 	d = deltas[target - 1]
+					# elif target == 0:
+					# 	d = -1.0 * deltas[initial - 1]
+					# else:
+					# 	d = -1.0 * deltas[initial - 1] + deltas[target - 1]
+
 						
-					if k is not None:
-						d = truncate(d, k)
+					# if k is not None:
+					# 	d = truncate(d, k)
+
+					explained, d = tgt(x_init, initial, target,k)
 					
 					# Find the representation of the initial points after they have been transformed
-					rep_init = model.Encode(x_init+d) #sess.run(rep, feed_dict={X: x_init, D: np.reshape(d, (1, n_input))})
+					rep_init = model.Encode(explained) #sess.run(rep, feed_dict={X: x_init, D: np.reshape(d, (1, n_input))})
 					
 					# Find the representation of the target points without any transformation
 					rep_target = model.Encode(x_target) #sess.run(rep, feed_dict={X: x_target, D: np.zeros((1, n_input))})
@@ -245,7 +252,7 @@ class Explain(object):
 		input_dim = x.shape[1]
 		num_clusters = len(indices)
 
-		a, b = self.metrics(x, indices, np.zeros((num_clusters - 1, input_dim)), epsilon)
+		a, b = self.metrics(x, indices, torch.from_numpy(np.zeros((num_clusters - 1, input_dim))), epsilon)
 
 		d = np.diagonal(a)
 
