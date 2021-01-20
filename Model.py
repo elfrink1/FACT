@@ -1,10 +1,13 @@
 from eldr.models.autoencoder import *
+from eldr.models.vae.train_torch import *
 from eldr.train import train_ae
 from eldr.data import *
 from torch.utils.data import Dataset, DataLoader
 from types import SimpleNamespace
 import json
 import os
+import sys
+from eldr.models.vae.utils import sample_reparameterize
 
 
 
@@ -13,16 +16,17 @@ import os
 
 
 class Model(object):
-	def __init__(self, model):
+	def __init__(self, model, model_type):
 		self.model = model
+		self.model_type = model_type
 
 
 	@classmethod
 	def Initialize(cls, model_type, input_, pretrained_path=None):
-		if model_type != 'autoencoder':
-			sys.exit("model_type wrong, provide right model type from: [autoencoder]")
+		if model_type != 'autoencoder' and model_type != 'vae':
+			sys.exit("model_type wrong, provide right model type from: [autoencoder, vae]")
 
-		else:
+		if model_type == 'autoencoder':
 			if pretrained_path == None:
 				"""
 					Train the model and load the best model
@@ -58,7 +62,15 @@ class Model(object):
 				print("Loading the pretrained model...")
 				model = torch.load(pretrained_path)
 
-		return cls(model)
+		if model_type == 'vae':
+			if pretrained_path == None:
+				pass
+
+			else:
+				print("Loading the pretrained model...")
+				model = torch.load(pretrained_path, map_location=torch.device('cpu'))
+
+		return cls(model, model_type)
 
 
 
@@ -71,8 +83,14 @@ class Model(object):
 		dl = DataLoader(Data(input_), batch_size = 1, shuffle = False)
 		for i, batch in enumerate(dl,0):
 				input = batch.float()
-				recon = self.model.encoder(input)
-				recons[i,:] = recon.data.view(-1,2)
+				if self.model_type != 'vae':
+					recon = self.model.encoder(input)
+					recons[i,:] = recon.data.view(-1,2)
+				else:
+					means, log_stds = self.model.encoder(input)
+					recon = sample_reparameterize(means, torch.exp(log_stds))
+					recons[i,:] = recon.data.view(-1,2)
+
 			
 		return recons
 

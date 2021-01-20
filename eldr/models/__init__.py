@@ -1,1 +1,1 @@
-__all__ = ["autoencoder"]
+__all__ = ["autoencoder", "vae"]

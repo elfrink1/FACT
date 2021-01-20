@@ -99,7 +99,7 @@ class MLPDecoder(nn.Module):
 		"""
 		super().__init__()
 		self.output_shape = output_shape
-		out = self.output_shape[0]*self.output_shape[1]*self.output_shape[2]
+		out = np.prod(output_shape) #self.output_shape[0]*self.output_shape[1]*self.output_shape[2]
 		self.z_dim = z_dim
 		self.hidden_dims = hidden_dims
 		self.hidden_dims.extend([out])
@@ -148,13 +148,11 @@ class MLPDecoder(nn.Module):
 		x = z
 		for layer in self.layers_mean:
 			x = layer(x)
-		#x = x.view(z.shape[0], self.output_shape[0], self.output_shape[1], self.output_shape[2])
 		mean = x
 
 		x = z
 		for layer in self.layers_std:
 			x = layer(x)
-		#x = x.view(z.shape[0], self.output_shape[0], self.output_shape[1], self.output_shape[2])
 		log_std = x
 
 		return mean, log_std
