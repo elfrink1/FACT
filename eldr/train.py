@@ -120,7 +120,7 @@ def train_scvis(
   model = model.to(device)
 
   # Create optimizer
-  optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+  optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.001)
 
   # Tracking variables for finding best model
   best_val_elbo = float('inf')
