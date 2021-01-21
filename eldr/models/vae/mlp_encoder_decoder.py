@@ -21,7 +21,7 @@ import numpy as np
 
 class MLPEncoder(nn.Module):
 
-	def __init__(self, input_dim=784, hidden_dims=[512], z_dim=20):
+	def __init__(self, input_dim=784, hidden_dims=[128,64,32], z_dim=2):
 		"""
 		Encoder with an MLP network and ReLU activations (except the output layer).
 
@@ -44,7 +44,7 @@ class MLPEncoder(nn.Module):
 		for i, hidden_dim in enumerate(self.hidden_dims):
 			if i != len(self.hidden_dims)-1:
 				layers_mean.append(nn.Linear(inp_dim, hidden_dim))
-				layers_mean.append(nn.ReLU())
+				layers_mean.append(nn.ELU())
 				inp_dim = hidden_dim
 			else:
 				layers_mean.append(nn.Linear(inp_dim, hidden_dim))
@@ -54,7 +54,7 @@ class MLPEncoder(nn.Module):
 		for i, hidden_dim in enumerate(self.hidden_dims):
 			if i != len(self.hidden_dims)-1:
 				layers_std.append(nn.Linear(inp_dim, hidden_dim))
-				layers_std.append(nn.ReLU())
+				layers_std.append(nn.ELU())
 				inp_dim = hidden_dim
 			else:
 				layers_std.append(nn.Linear(inp_dim, hidden_dim))
@@ -87,7 +87,7 @@ class MLPEncoder(nn.Module):
 
 class MLPDecoder(nn.Module):
 
-	def __init__(self, z_dim=20, hidden_dims=[512], output_shape=[1, 28, 28]):
+	def __init__(self, z_dim=2, hidden_dims=[32, 32, 32, 64, 128], output_shape=[1, 28, 28]):
 		"""
 		Decoder with an MLP network.
 		Inputs:
@@ -109,7 +109,7 @@ class MLPDecoder(nn.Module):
 		for i, hidden_dim in enumerate(self.hidden_dims):
 			if i != len(self.hidden_dims)-1:
 				layers.append(nn.Linear(inp_dim, hidden_dim))
-				layers.append(nn.ReLU())
+				layers.append(nn.ELU())
 				inp_dim = hidden_dim
 			else:
 				layers.append(nn.Linear(inp_dim, hidden_dim))
@@ -122,7 +122,7 @@ class MLPDecoder(nn.Module):
 		for i, hidden_dim in enumerate(self.hidden_dims):
 			if i != len(self.hidden_dims)-1:
 				layers.append(nn.Linear(inp_dim, hidden_dim))
-				layers.append(nn.ReLU())
+				layers.append(nn.ELU())
 				inp_dim = hidden_dim
 			else:
 				layers.append(nn.Linear(inp_dim, hidden_dim))
