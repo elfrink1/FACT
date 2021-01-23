@@ -9,6 +9,7 @@ from matplotlib.path import Path
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
+import torch
 
 from eldr.misc import truncate
 
@@ -25,7 +26,7 @@ def plot_polys(data_rep, vertices):
 
     plt.scatter(data_rep[:, 0], data_rep[:, 1])
 
-    plt.show()
+    #plt.show()
     plt.close()
 
 def plot_groups(x, data_rep, num_clusters, labels, contour = None, name = "plot_groups.png"):
@@ -65,7 +66,7 @@ def plot_groups(x, data_rep, num_clusters, labels, contour = None, name = "plot_
         plt.colorbar()
 
     plt.savefig(name)
-    plt.show()
+    #plt.show()
     plt.close()
 
     return means, centers, indices
@@ -106,10 +107,17 @@ def plot_metrics(a, b, name = "plot_metrics.png", fontsize = 55, labelsize = 40)
     ax.cax.tick_params(labelsize = labelsize)
 
     plt.savefig(name)
-    plt.show()
+    #plt.show()
     plt.close()
 
 def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = None, num_points = 50, name = "plot_explanation.png", feature_names = None):
+    
+    if not torch.is_tensor(x):
+        x = torch.tensor(x)
+    if not torch.is_tensor(deltas):
+        deltas = torch.tensor(deltas)
+    if not torch.is_tensor(data_rep):
+        data_rep = torch.tensor(data_rep)
 
     # Find the explanation from c1 to c2
     if c1 == 0:
@@ -122,7 +130,7 @@ def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = Non
     if k is not None:
         d = truncate(d, k)
         
-    d = np.reshape(d, (1, d.shape[0]))
+    d = torch.reshape(d, (1, d.shape[0]))
    
     # Visualize the data
     fig, ax = plt.subplots(figsize=(20, 30))
@@ -174,7 +182,7 @@ def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = Non
         plt.xticks(range(d.shape[1]), feature_names, rotation=90, fontsize = 40)
 
     plt.savefig(name)
-    plt.show()
+    #plt.show()
     plt.close()
 
 
@@ -205,5 +213,5 @@ def plot_change(deltas, deltas_original, name = "plot_similarity.png", feature_n
     plt.colorbar()
     
     plt.savefig(name)
-    plt.show()
+    #plt.show()
     plt.close()

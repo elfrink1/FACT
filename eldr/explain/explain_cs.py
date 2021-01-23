@@ -155,7 +155,8 @@ class Explain(object):
 
 			
 
-			transformed = self.model.Encode_ones(explained.float())			
+			transformed = self.model.Encode_ones(explained.float())
+			# print(transformed.shape, t.shape)			
 
 			loss = criterion(transformed, t) + lambda_global*torch.mean(torch.abs(d))
 			deltas_grad = torch.autograd.grad(loss, [d])
@@ -180,11 +181,18 @@ class Explain(object):
 			optimizer.step(initial, target, grad)
 			
 			iter += 1
+			#break
 
 		return best_deltas, tgt
 
 
 	def metrics(self, x, indices, deltas, epsilon, k = None):
+		if not torch.is_tensor(x):
+			x = torch.tensor(x)
+
+		if not torch.is_tensor(deltas):
+			deltas = torch.tensor(deltas)
+
 		n_input = x.shape[1]
 		num_clusters = len(indices)
 
@@ -255,10 +263,11 @@ class Explain(object):
 		a, b = self.metrics(x, indices, torch.from_numpy(np.zeros((num_clusters - 1, input_dim))), epsilon)
 
 		d = np.diagonal(a)
+		return np.mean(d), np.min(d), np.max(d)
 
-		file = open("epsilon.txt","w")
-		file.write(str(np.mean(d)) + " " + str(np.min(d)) + " " + str(np.max(d)))
-		file.close()
+		#file = open("epsilon.txt","w")
+		#file.write(str(np.mean(d)) + " " + str(np.min(d)) + " " + str(np.max(d)))
+		#file.close()
 
 	# e_more should be a sparser vector than e_less
 	# counts the percentage of e_more's explanation that is in features chosen by e_less

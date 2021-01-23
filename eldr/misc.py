@@ -1,5 +1,6 @@
 from matplotlib.path import Path
 import numpy as np
+import torch
 
 def poly2labels(data_rep, vertices):
 
@@ -17,9 +18,12 @@ def poly2labels(data_rep, vertices):
 	return labels    
 	
 def truncate(values, k):
-	values = np.squeeze(values)
-	idx = (-np.abs(values)).argsort()[:k]
-	values_aprox = np.zeros(values.shape)
+	if not torch.is_tensor(values):
+		values = torch.tensor(values).float()
+
+	values = torch.squeeze(values)
+	idx = (-torch.abs(values)).argsort()[:k]
+	values_aprox = torch.zeros(values.shape)
 	values_aprox[idx] = values[idx]
 	return values_aprox
 	
