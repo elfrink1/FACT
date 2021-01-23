@@ -25,7 +25,6 @@ class TGT(nn.Module):
 		"""x  Tensor with shape [Batch size, n_dim]
 		cluster: (list of) int(s) for which delta to use 
 			(use a list if the batch is not homogeneous)"""
-# 		print(x)
 		initial = cluster
 		if initial == target:
 			d = torch.zeros((1, x.shape[1]))
@@ -61,7 +60,7 @@ class Optimizer(object):
 		self.clip_val = clip_val
 
 	def clip(self, grad):
-		return torch.clip(torch.squeeze(grad), -1.0*self.clip_val, self.clip_val)
+		return torch.clamp(torch.squeeze(grad), -1.0*self.clip_val, self.clip_val)
 
 	def step(self, initial, target, grad):
 		if initial == 0:
@@ -82,7 +81,7 @@ class Explain(object):
 		self.centers = centers
 
 
-	def explain(self, config):
+	def explain(self, config, k=None):
 		
 
 		lambda_global = config.lambda_global
@@ -115,7 +114,6 @@ class Explain(object):
 			for i in range(1, num_clusters):
 				deltas[i - 1,:] = x_means[i] - x_means[0]
 
-
 		tgt = TGT(n_input, num_clusters, init_deltas=deltas)
 
 		print(list(tgt.parameters()))
@@ -130,7 +128,6 @@ class Explain(object):
 		criterion = nn.MSELoss(reduction="sum")
 
 		optimizer = Optimizer(tgt, lr=learning_rate, clip_val=clip_val)
-
 
 		iter = 0
 		best_iter = 0
@@ -151,11 +148,8 @@ class Explain(object):
 			p = x_means[initial]
 			t = y_means[target]
 
-			explained, d = tgt(p, initial, target)
-
-			
-
-			transformed = self.model.Encode_ones(explained.float())			
+			explained, d = tgt(p, initial, target, k=k)
+			transformed = self.model.Encode_ones(explained.float())
 
 			loss = criterion(transformed, t) + lambda_global*torch.mean(torch.abs(d))
 			deltas_grad = torch.autograd.grad(loss, [d])
@@ -217,10 +211,9 @@ class Explain(object):
 
 						
 					# if k is not None:
-					# 	d = truncate(d, k)
+						# 	d = truncate(d, k)
+					explained, d = tgt(x_init, initial, target, k)
 
-					explained, d = tgt(x_init, initial, target,k)
-					
 					# Find the representation of the initial points after they have been transformed
 					rep_init = model.Encode(explained) #sess.run(rep, feed_dict={X: x_init, D: np.reshape(d, (1, n_input))})
 					

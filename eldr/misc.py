@@ -1,6 +1,6 @@
 from matplotlib.path import Path
 import numpy as np
-
+import torch
 def poly2labels(data_rep, vertices):
 
 	m = data_rep.shape[0]
@@ -16,11 +16,20 @@ def poly2labels(data_rep, vertices):
 				
 	return labels    
 	
-def truncate(values, k):
-	values = np.squeeze(values)
-	idx = (-np.abs(values)).argsort()[:k]
-	values_aprox = np.zeros(values.shape)
-	values_aprox[idx] = values[idx]
+# def truncate(values, k):
+#
+# 	values = np.squeeze(values)
+# 	idx = (-np.abs(values)).argsort()[:k]
+# 	values_aprox = np.zeros(values.shape)
+# 	values_aprox[idx] = values[idx]
+# 	return values_aprox
+
+def truncate(d, k):
+	d = torch.squeeze(d)
+	vals, idx = torch.topk(-torch.abs(d), k)
+	values_aprox = torch.zeros_like(d)
+	for i in idx.numpy():
+		values_aprox[i] = d[i]
 	return values_aprox
 	
 def load(deltas, k, initial, target):
