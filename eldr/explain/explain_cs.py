@@ -10,43 +10,55 @@ from sklearn.metrics.pairwise import euclidean_distances
 from eldr.misc import truncate
 
 class TGT(nn.Module):
-	def __init__(self, n_dim, num_clusters, init_deltas=None, use_scaling=False):
+	def __init__(self, n_dim, num_clusters, init_deltas=None, use_scaling=False, init_gammas_logit=None):
 		super(TGT, self).__init__()
 		self.use_scaling = use_scaling
 		if init_deltas is None:
-			self.deltas = nn.ParameterList([nn.Parameter(torch.zeros(n_dim))])
+			self.deltas = nn.ParameterList([nn.Parameter(torch.zeros(n_dim)) for _ in range(num_clusters - 1)])
 		else:
 			self.deltas = nn.ParameterList([nn.Parameter(start_delta) for start_delta in init_deltas])
 		
 		if self.use_scaling:
-			self.gammas = nn.ParameterList([nn.Parameter(torch.ones(n_dim))])
+			if init_gammas_logit is None:
+				self.logit_gammas = nn.ParameterList([nn.Parameter(torch.ones(n_dim)) for _ in range(num_clusters - 1)])
+			else:
+				self.logit_gammas = nn.ParameterList([nn.Parameter(start_gl) for start_gl in init_gammas_logit])
 	
-	def forward(self, x, cluster, target, k=None):
-		"""x  Tensor with shape [Batch size, n_dim]
-		cluster: (list of) int(s) for which delta to use 
-			(use a list if the batch is not homogeneous)"""
-# 		print(x)
-		initial = cluster
-		if initial == target:
-			d = torch.zeros((1, x.shape[1]))
-		elif initial == 0:
-			d = self.deltas[target - 1]
-		elif target == 0:
-			d = -1.0 * self.deltas[initial - 1]
+	def forward(self, x, initial, target, k=None):
+		"""x: Init tensor
+		initial:  int for initial cluster
+		target: int for target cluster"""
+		if self.use_scaling:
+			if initial == target:
+				d = torch.zeros((1, x.shape[1]))
+				logit_g = torch.zeros((1, x.shape[1]))
+			elif initial == 0:
+				d = self.deltas[target - 1]
+				logit_g = self.logit_gammas[target-1]
+			elif target == 0:
+				d = -1.0 * self.deltas[initial - 1]
+				logit_g = -1.0*self.logit_gammas[initial-1]
+			else:
+				logit_g = self.logit_gammas[target-1] - self.logit_gammas[initial-1]
+				d = -1.0 *  torch.exp(-self.logit_gammas[initial - 1]) *self.deltas[initial - 1] + self.deltas[target - 1]
 		else:
-			d = -1.0 * self.deltas[initial - 1] + self.deltas[target - 1]
+			if initial == target:
+				d = torch.zeros((1, x.shape[1]))
+			elif initial == 0:
+				d = self.deltas[target - 1]
+			elif target == 0:
+				d = -1.0 * self.deltas[initial - 1]
+			else:
+				d = -1.0 * self.deltas[initial - 1] + self.deltas[target - 1]
 				
 		if k is not None:
 			d = truncate(d, k)
-		# if initial == 0:
-		# 	d = self.deltas[target - 1]
-		# elif target == 0:
-		# 	d = -1.0 * self.deltas[initial - 1]
-		# else:
-		# 	d = -1.0 * self.deltas[initial - 1] + self.deltas[target - 1]
+			if self.use_scaling:
+				logit_g = truncate(logit_g, k)
 
 		if self.use_scaling:
-			return self.gammas[cluster]*x + self.deltas[cluster]
+			g = torch.exp(logit_g)
+			return g*x + d, d, logit_g
 		else:
 			return x + d, d
 	
@@ -63,23 +75,33 @@ class Optimizer(object):
 	def clip(self, grad):
 		return torch.clip(torch.squeeze(grad), -1.0*self.clip_val, self.clip_val)
 
-	def step(self, initial, target, grad):
+	def update(self, index, factor, delta_grad, gamma_grad=None):
+		self.model.deltas[index - 1].data += factor*self.lr*self.clip(delta_grad)
+		if gamma_grad is not None:
+			self.model.logit_gammas[index - 1].data += factor*self.lr*self.clip(gamma_grad)
+		
+	def step(self, initial, target, delta_grad, gamma_grad=None):
 		if initial == 0:
-			self.model.deltas[target-1].data -= self.lr*self.clip(grad)
+			# self.model.deltas[target-1].data -= self.lr*self.clip(grad)
+			self.update(target, -1, delta_grad, gamma_grad)
 		elif target == 0:
-			self.model.deltas[initial - 1].data += self.lr*self.clip(grad)
+			# self.model.deltas[initial - 1].data += self.lr*self.clip(grad)
+			self.update(initial, 1, delta_grad, gamma_grad)
 		else:
 			#print("Gradients", grad)
-			self.model.deltas[initial - 1].data += self.lr * 0.5 * self.clip(grad)
-			self.model.deltas[target - 1].data -= self.lr * 0.5 * self.clip(grad)
+			# self.model.deltas[initial - 1].data += self.lr * 0.5 * self.clip(grad)
+			# self.model.deltas[target - 1].data -= self.lr * 0.5 * self.clip(grad)
+			self.update(initial, 0.5, delta_grad, gamma_grad)
+			self.update(target, -0.5, delta_grad, gamma_grad)
 
 
 	 
 class Explain(object):
-	def __init__(self, model, means, centers):
+	def __init__(self, model, means, centers, use_scaling=False):
 		self.model = model
 		self.means = means
 		self.centers = centers
+		self.use_scaling = use_scaling
 
 
 	def explain(self, config):
@@ -116,7 +138,7 @@ class Explain(object):
 				deltas[i - 1,:] = x_means[i] - x_means[0]
 
 
-		tgt = TGT(n_input, num_clusters, init_deltas=deltas)
+		tgt = TGT(n_input, num_clusters, init_deltas=deltas, use_scaling=self.use_scaling)
 
 		print(list(tgt.parameters()))
 
@@ -136,6 +158,7 @@ class Explain(object):
 		best_iter = 0
 		best_loss = np.inf
 		best_deltas = None
+		best_gammas = None
 		ema = None
 		while True:
 		
@@ -151,17 +174,30 @@ class Explain(object):
 			p = x_means[initial]
 			t = y_means[target]
 
-			explained, d = tgt(p, initial, target)
+			if self.use_scaling:
+				explained, d, logit_g = tgt(p, initial, target)
+			else:
+				explained, d = tgt(p, initial, target)
 
 			
 
 			transformed = self.model.Encode_ones(explained.float())
 			# print(transformed.shape, t.shape)			
+			regularization_term = lambda_global*torch.mean(torch.abs(d))
+			if self.use_scaling:
+				regularization_term += lambda_global*torch.mean(torch.abs(logit_g))
 
-			loss = criterion(transformed, t) + lambda_global*torch.mean(torch.abs(d))
-			deltas_grad = torch.autograd.grad(loss, [d])
+			loss = criterion(transformed, t) + regularization_term
 
-			grad = deltas_grad[0]
+			if self.use_scaling:
+				deltas_grad, gammas_grad = torch.autograd.grad(loss, [d, logit_g])
+				delta_grad = deltas_grad[0]
+				gamma_grad = gammas_grad[0]
+			else:
+				deltas_grad = torch.autograd.grad(loss, [d])
+				delta_grad = deltas_grad[0]
+				gamma_grad = None
+
 
 			if iter == 0:
 				ema = loss.item()
@@ -172,21 +208,28 @@ class Explain(object):
 				best_iter = iter
 				best_loss = ema
 				best_deltas = torch.empty((num_clusters - 1, n_input))
-				for i, param in enumerate(tgt.parameters()):
-					best_deltas[i,:] = param.detach()
+				for i, delta in enumerate(tgt.deltas):
+					best_deltas[i,:] = delta.detach()
+				if self.use_scaling:
+					best_gammas = torch.empty((num_clusters - 1, n_input))
+					for i, gamma in enumerate(tgt.logit_gammas):
+						best_gammas[i,:] = gamma.detach()
 				if verbose:
 					print("Retrieving the best deltas...")
 					print("iter: {}, ema: {}, initial {}, target {}".format(iter, ema, initial, target))# best_iter, best_loss)); print(best_deltas); print(list(tgt.parameters()))
 
-			optimizer.step(initial, target, grad)
+			optimizer.step(initial, target, delta_grad, gamma_grad)
 			
 			iter += 1
 			#break
+		if self.use_scaling:
+			# Gammas are returned as logits
+			return best_deltas, best_gammas, tgt
+		else:
+			return best_deltas, tgt
 
-		return best_deltas, tgt
 
-
-	def metrics(self, x, indices, deltas, epsilon, k = None):
+	def metrics(self, x, indices, deltas, epsilon, k = None, logit_gammas=None):
 		if not torch.is_tensor(x):
 			x = torch.tensor(x)
 
@@ -198,7 +241,7 @@ class Explain(object):
 
 		model = self.model
 
-		tgt = TGT(n_input, num_clusters, init_deltas=deltas)
+		tgt = TGT(n_input, num_clusters, init_deltas=deltas, init_gammas_logit=logit_gammas, use_scaling=self.use_scaling)
 
 		# Define the objective function
 
@@ -226,8 +269,10 @@ class Explain(object):
 						
 					# if k is not None:
 					# 	d = truncate(d, k)
-
-					explained, d = tgt(x_init, initial, target,k)
+					if self.use_scaling:
+						explained, d, logit_g = tgt(x_init, initial, target,k)
+					else:
+						explained, d = tgt(x_init, initial, target,k)
 					
 					# Find the representation of the initial points after they have been transformed
 					rep_init = model.Encode(explained) #sess.run(rep, feed_dict={X: x_init, D: np.reshape(d, (1, n_input))})
