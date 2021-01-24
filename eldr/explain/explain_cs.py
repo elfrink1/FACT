@@ -20,7 +20,7 @@ class TGT(nn.Module):
 		
 		if self.use_scaling:
 			if init_gammas_logit is None:
-				self.logit_gammas = nn.ParameterList([nn.Parameter(torch.ones(n_dim)) for _ in range(num_clusters - 1)])
+				self.logit_gammas = nn.ParameterList([nn.Parameter(torch.zeros(n_dim)) for _ in range(num_clusters - 1)])
 			else:
 				self.logit_gammas = nn.ParameterList([nn.Parameter(start_gl) for start_gl in init_gammas_logit])
 	
@@ -36,7 +36,7 @@ class TGT(nn.Module):
 				d = self.deltas[target - 1]
 				logit_g = self.logit_gammas[target-1]
 			elif target == 0:
-				d = -1.0 * self.deltas[initial - 1]
+				d = -1.0 * torch.exp(-self.logit_gammas[initial - 1]) * self.deltas[initial - 1]
 				logit_g = -1.0*self.logit_gammas[initial-1]
 			else:
 				logit_g = self.logit_gammas[target-1] - self.logit_gammas[initial-1]
@@ -190,9 +190,7 @@ class Explain(object):
 			loss = criterion(transformed, t) + regularization_term
 
 			if self.use_scaling:
-				deltas_grad, gammas_grad = torch.autograd.grad(loss, [d, logit_g])
-				delta_grad = deltas_grad[0]
-				gamma_grad = gammas_grad[0]
+				delta_grad, gamma_grad = torch.autograd.grad(loss, [d, logit_g])
 			else:
 				deltas_grad = torch.autograd.grad(loss, [d])
 				delta_grad = deltas_grad[0]
