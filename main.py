@@ -21,27 +21,32 @@ def load_model(model_type, input=None, pretrained_path=None):
 	model = Model.Initialize(model_type = model_type, input_ = input, pretrained_path = pretrained_path)
 	return model
 
-def get_data(data_path):
-	features_path = os.path.join(data_path, 'X.tsv')
-	labels_path = os.path.join(data_path, 'y.tsv')
-	x = pd.read_csv(features_path, sep='\t').values
-	y = pd.read_csv(labels_path, sep='\t').values
+def get_data(features_path, labels_path=None, labels=True):
+	features_path = os.path.join(features_path)
+	x = pd.read_csv(features_path).to_numpy()
+	if labels_path != None and labels == True:
+		labels_path = os.path.join(labels_path)
+		y = pd.read_csv(labels_path).to_numpy()
+	elif labels == True:
+		y = x[:,-1]
+		x = x[:,:-1]
 	return x, y
 
 def plot_difference(path, labels, y):
 	fig, ax = plt.subplots(figsize=(10,10))
 	sns.boxplot(ax=ax, x=labels, y = np.squeeze(y))
-	ax.set(xlabel="Group", ylabel="Price")
+	ax.set(xlabel="Group", ylabel="Label")
 	ax.get_figure().savefig(path)
 
 def find_epsilon(Explainer, input_=None, indices=None):
-	epsilons = np.linspace(0, 1.5, num=100).tolist()
+	epsilons = np.linspace(0, 2.0, num=100).tolist()
 	for epsilon in epsilons:
 		mean_, min_, max_ = Explainer.eval_epsilon(input_, indices, epsilon)
 		print("epsilon {}, mean {}, min {}, max {}".format(epsilon, mean_, min_, max_))
 		if mean_ == 1.0 and min_ == 1.0 and max_== 1.0:
 			print("The epsilon value is {}".format(epsilon))
 			return epsilon
+	return epsilon
 
 def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 	# Columns are:  K, TGT-correctness, TGT-coverage, DBM-correctness, DBM-coverage
@@ -144,8 +149,7 @@ if __name__ == "__main__":
 	parser.add_argument('--pretrained_path',
 					  default='./Models/vae.pt',
 					  type=str,
-					  help='Path to the trained model',
-					  choices=['vae', 'autoencoder'])
+					  help='Path to the trained model')
 	parser.add_argument('--data_path',
 					  default='./ELDR/Housing/Data',
 					  type=str,

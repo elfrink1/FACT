@@ -1,11 +1,11 @@
 {
     "init_mode" : "zero",
     "lambda_global" : 1.5,
-    "consecutive_steps" : 10,
+    "consecutive_steps" : 5,
     "learning_rate" : 0.01,
     "clip_val" : 5.0, 
     "min_iters": 2000,
-    "stopping_iters" : 2000,
+    "stopping_iters" : 1000,
     "tol" : 0.0001,
     "discount" : 0.99,
     "verbose" : 1

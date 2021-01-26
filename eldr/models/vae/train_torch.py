@@ -237,6 +237,7 @@ def train_vae(model, train_loader, optimizer):
 
     optimizer.zero_grad()
     cost, elbo, tsne_cost = model(imgs)
+    #print(cost.item(), elbo.item(), tsne_cost.item())
     average_cost.append(cost.item())
     average_elbo.append(elbo.item())
     average_tsne_cost.append(tsne_cost.item())
@@ -255,141 +256,143 @@ def seed_everything(seed):
   torch.backends.cudnn.benchmark = False
 
 
-def main(args):
-  """
-	Main Function for the full training & evaluation loop of a VAE model.
-	Make use of a separate train function and a test function for both
-	validation and testing (testing only once after training).
-	Inputs:
-		args - Namespace object from the argument parser
-	"""
-  if args.seed is not None:
-    seed_everything(args.seed)
+# def main(args):
+#   """
+# 	Main Function for the full training & evaluation loop of a VAE model.
+# 	Make use of a separate train function and a test function for both
+# 	validation and testing (testing only once after training).
+# 	Inputs:
+# 		args - Namespace object from the argument parser
+# 	"""
+#   if args.seed is not None:
+#     seed_everything(args.seed)
 
-  # Prepare logging
-  experiment_dir = os.path.join(
-      args.log_dir,
-      datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
-  checkpoint_dir = os.path.join(experiment_dir, 'checkpoints')
-  os.makedirs(experiment_dir, exist_ok=True)
-  os.makedirs(checkpoint_dir, exist_ok=True)
-  summary_writer = SummaryWriter(experiment_dir)
+#   # Prepare logging
+#   experiment_dir = os.path.join(
+#       args.log_dir,
+#       datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+#   checkpoint_dir = os.path.join(experiment_dir, 'checkpoints')
+#   os.makedirs(experiment_dir, exist_ok=True)
+#   os.makedirs(checkpoint_dir, exist_ok=True)
+#   summary_writer = SummaryWriter(experiment_dir)
 
-  # Load dataset
-  if args.data == "housing":
-    path_features = os.path.join(args.data_path, 'X.tsv')
-    print(path_features)
-    path_labels = os.path.join(args.data_path, 'y.tsv')
-    data = Data.from_tsv(path_features, path_labels, split=True)
+#   # Load dataset
+#   if args.data == "housing":
+#     path_features = os.path.join(args.data_path, 'X.tsv')
+#     print(path_features)
+#     path_labels = os.path.join(args.data_path, 'y.tsv')
+#     data = Data.from_tsv(path_features, path_labels, split=True)
+#   # else:
+#   #   path_features = os.path.join(args.data_path, 'X.tsv')
 
-  train_dataset = Data(data.data, labels=data.labels)
-  train_loader = DataLoader(train_dataset,
-                            batch_size=args.batch_size,
-                            num_workers=args.num_workers)
+#   train_dataset = Data(data.data, labels=data.labels)
+#   train_loader = DataLoader(train_dataset,
+#                             batch_size=args.batch_size,
+#                             num_workers=args.num_workers)
 
-  val_dataset = Data(data.valD, labels=data.valY)
-  val_loader = DataLoader(val_dataset,
-                          batch_size=args.batch_size,
-                          num_workers=args.num_workers)
-  #train_loader, val_loader, test_loader = bmnist(batch_size=args.batch_size,
-  #num_workers=args.num_workers)
+#   val_dataset = Data(data.valD, labels=data.valY)
+#   val_loader = DataLoader(val_dataset,
+#                           batch_size=args.batch_size,
+#                           num_workers=args.num_workers)
+#   #train_loader, val_loader, test_loader = bmnist(batch_size=args.batch_size,
+#   #num_workers=args.num_workers)
 
-  # Create model
-  model = VAE(input_dim=train_dataset[0][0].shape[1],
-              output_shape=[1, train_dataset[0][0].shape[1]],
-              model_name=args.model,
-              hidden_dims=args.hidden_dims,
-              num_filters=args.num_filters,
-              z_dim=args.z_dim,
-              lr=args.lr)
+#   # Create model
+#   model = VAE(input_dim=train_dataset[0][0].shape[1],
+#               output_shape=[1, train_dataset[0][0].shape[1]],
+#               model_name=args.model,
+#               hidden_dims=args.hidden_dims,
+#               num_filters=args.num_filters,
+#               z_dim=args.z_dim,
+#               lr=args.lr)
 
-  device = "cuda" if torch.cuda.is_available() else "cpu"
-  model = model.to(device)
+#   device = "cuda" if torch.cuda.is_available() else "cpu"
+#   model = model.to(device)
 
-  # Create optimizer
-  optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+#   # Create optimizer
+#   optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-  #Sample image grid before training starts
-  #sample_and_save(model, 0, summary_writer, 64, args.log_dir)
-  # if args.z_dim == 2:
-  # 	img_grid = visualize_manifold(model.decoder)
+#   #Sample image grid before training starts
+#   #sample_and_save(model, 0, summary_writer, 64, args.log_dir)
+#   # if args.z_dim == 2:
+#   # 	img_grid = visualize_manifold(model.decoder)
 
-  # Tracking variables for finding best model
-  best_val_elbo = float('inf')
-  best_epoch_idx = 0
-  print(f"Using device {device}")
-  epoch_iterator = (trange(1, args.epochs + 1, desc=f"{args.model} VAE")
-                    if args.progress_bar else range(1, args.epochs + 1))
+#   # Tracking variables for finding best model
+#   best_val_elbo = float('inf')
+#   best_epoch_idx = 0
+#   print(f"Using device {device}")
+#   epoch_iterator = (trange(1, args.epochs + 1, desc=f"{args.model} VAE")
+#                     if args.progress_bar else range(1, args.epochs + 1))
 
-  plotter = Plotter('cost')
-  iteration = 0
-  for epoch in epoch_iterator:
-    # Training epoch
-    train_iterator = (tqdm(train_loader, desc="Training", leave=False)
-                      if args.progress_bar else train_loader)
+#   plotter = Plotter('cost')
+#   iteration = 0
+#   for epoch in epoch_iterator:
+#     # Training epoch
+#     train_iterator = (tqdm(train_loader, desc="Training", leave=False)
+#                       if args.progress_bar else train_loader)
 
-    epoch_train_elbo, train_cost, train_tc = train_vae(model, train_iterator,
-                                                       optimizer)
+#     epoch_train_elbo, train_cost, train_tc = train_vae(model, train_iterator,
+#                                                        optimizer)
 
-    # Validation epoch
-    val_iterator = (tqdm(val_loader, desc="Testing", leave=False)
-                    if args.progress_bar else val_loader)
-    #epoch_val_bpd, val_rec_loss, val_reg_loss = test_vae(model, val_iterator)
+#     # Validation epoch
+#     val_iterator = (tqdm(val_loader, desc="Testing", leave=False)
+#                     if args.progress_bar else val_loader)
+#     #epoch_val_bpd, val_rec_loss, val_reg_loss = test_vae(model, val_iterator)
 
-    epoch_val_elbo, val_cost, val_tc = test_vae(model, val_iterator)
+#     epoch_val_elbo, val_cost, val_tc = test_vae(model, val_iterator)
 
-    plotter.update([epoch_train_elbo, epoch_val_elbo])
+#     plotter.update([epoch_train_elbo, epoch_val_elbo])
 
-    # Logging to TensorBoard
-    # summary_writer.add_scalars(
-    #     "BPD", {"train": epoch_train_bpd, "val": epoch_val_bpd}, epoch)
-    # print("Epoch {} bpd_train {} bpd_val {}".format(epoch, epoch_train_bpd, epoch_val_bpd))
-    # summary_writer.add_scalars(
-    #     "Reconstruction Loss", {"train": train_rec_loss, "val": val_rec_loss}, epoch)
-    # print("Epoch {} rec_train {} rec_val {}".format(epoch, train_rec_loss, val_rec_loss))
-    # summary_writer.add_scalars(
-    #     "Regularization Loss", {"train": train_reg_loss, "val": train_reg_loss}, epoch)
-    # print("Epoch {} reg_train {} reg_val {}".format(epoch, train_reg_loss, val_reg_loss))
-    # print("###")
-    print("Epoch {} elbo_train {} elbo_val {}".format(epoch, epoch_train_elbo,
-                                                      epoch_val_elbo))
-    print("Epoch {} cost_train {} cost_val {}".format(epoch, train_cost,
-                                                      val_cost))
-    print("Epoch {} tc_train {} tc_val {}".format(epoch, train_tc, val_tc))
-    print("###")
-    # summary_writer.add_scalars(
-    #     "ELBO", {"train": train_rec_loss + train_reg_loss, "val": val_rec_loss + val_reg_loss}, epoch)
+#     # Logging to TensorBoard
+#     # summary_writer.add_scalars(
+#     #     "BPD", {"train": epoch_train_bpd, "val": epoch_val_bpd}, epoch)
+#     # print("Epoch {} bpd_train {} bpd_val {}".format(epoch, epoch_train_bpd, epoch_val_bpd))
+#     # summary_writer.add_scalars(
+#     #     "Reconstruction Loss", {"train": train_rec_loss, "val": val_rec_loss}, epoch)
+#     # print("Epoch {} rec_train {} rec_val {}".format(epoch, train_rec_loss, val_rec_loss))
+#     # summary_writer.add_scalars(
+#     #     "Regularization Loss", {"train": train_reg_loss, "val": train_reg_loss}, epoch)
+#     # print("Epoch {} reg_train {} reg_val {}".format(epoch, train_reg_loss, val_reg_loss))
+#     # print("###")
+#     print("Epoch {} elbo_train {} elbo_val {}".format(epoch, epoch_train_elbo,
+#                                                       epoch_val_elbo))
+#     print("Epoch {} cost_train {} cost_val {}".format(epoch, train_cost,
+#                                                       val_cost))
+#     print("Epoch {} tc_train {} tc_val {}".format(epoch, train_tc, val_tc))
+#     print("###")
+#     # summary_writer.add_scalars(
+#     #     "ELBO", {"train": train_rec_loss + train_reg_loss, "val": val_rec_loss + val_reg_loss}, epoch)
 
-    # if epoch % 5 == 0:
-    # 	sample_and_save(model, epoch, summary_writer, 64, args.log_dir)
+#     # if epoch % 5 == 0:
+#     # 	sample_and_save(model, epoch, summary_writer, 64, args.log_dir)
 
-    # Saving best model
-    if epoch_val_elbo < best_val_elbo:
-      best_val_elbo = epoch_val_elbo
-      best_epoch_idx = epoch
-      checkpoint_dir = './../../../Models/'
-      torch.save(model, os.path.join(checkpoint_dir, "vae.pt"))
+#     # Saving best model
+#     if epoch_val_elbo < best_val_elbo:
+#       best_val_elbo = epoch_val_elbo
+#       best_epoch_idx = epoch
+#       checkpoint_dir = './../../../Models/'
+#       torch.save(model, os.path.join(checkpoint_dir, "vae.pt"))
 
-  # Load best model for test
-  # print(f"Best epoch: {best_epoch_idx}. Load model for testing.")
-  # model.load_state_dict(torch.load(os.path.join(checkpoint_dir, "epoch.pt")))
+#   # Load best model for test
+#   # print(f"Best epoch: {best_epoch_idx}. Load model for testing.")
+#   # model.load_state_dict(torch.load(os.path.join(checkpoint_dir, "epoch.pt")))
 
-  # Test epoch
-  # test_loader = (tqdm(test_loader, desc="Testing", leave=False)
-  # 			   if args.progress_bar else test_loader)
-  # test_elbo = test_vae(model, test_loader)
-  # print(f"Test BPD: {test_elbo}")
-  #summary_writer.add_scalars("BPD", {"test": test_bpd}, best_epoch_idx)
+#   # Test epoch
+#   # test_loader = (tqdm(test_loader, desc="Testing", leave=False)
+#   # 			   if args.progress_bar else test_loader)
+#   # test_elbo = test_vae(model, test_loader)
+#   # print(f"Test BPD: {test_elbo}")
+#   #summary_writer.add_scalars("BPD", {"test": test_bpd}, best_epoch_idx)
 
-  plotter.plot()
+#   plotter.plot()
 
-  # Manifold generation
-  # if args.z_dim == 2:
-  # 	img_grid = visualize_manifold(model.decoder)
-  # 	save_image(img_grid, os.path.join(experiment_dir, 'vae_manifold.png'),
-  # 			   normalize=False)
+#   # Manifold generation
+#   # if args.z_dim == 2:
+#   # 	img_grid = visualize_manifold(model.decoder)
+#   # 	save_image(img_grid, os.path.join(experiment_dir, 'vae_manifold.png'),
+#   # 			   normalize=False)
 
-  # return test_elbo
+#   # return test_elbo
 
 
 if __name__ == '__main__':

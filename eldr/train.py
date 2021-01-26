@@ -86,7 +86,7 @@ def train_ae(input_,\
 
 
 def train_scvis(
-    dataset="housing",
+    dataset = "housing",
     features_path="./Reproduction/Housing/Data/X.tsv",
     labels_path="./Reproduction/Housing/Data/y.tsv",
     model_dir='./Models/',
@@ -127,7 +127,7 @@ def train_scvis(
   best_epoch_idx = 0
   iteration = 0
 
-  plotter = Plotter('cost')
+  plotter = Plotter(dataset)
 
   for epoch in range(1, min_epochs + 1):
 

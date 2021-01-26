@@ -1,3 +1,4 @@
+from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -50,21 +51,29 @@ class TGT(nn.Module):
 
 
 class Optimizer(object):
-	def __init__(self, model, lr=0.001, clip_val=5.0):
+	def __init__(self, model, lr=0.001, clip_val=5.0, decay_factor=1.5):
 		self.model = model
 		self.lr = lr
 		self.clip_val = clip_val
+		self.decay_factor = decay_factor
 
 	def clip(self, grad):
 		return torch.clip(torch.squeeze(grad), -1.0*self.clip_val, self.clip_val)
 
+	def decay_lr(self):
+		self.lr = self.lr/self.decay_factor
+
 	def step(self, initial, target, grad):
+
 		if initial == 0:
+			#print("Before", self.model.deltas[target-1])
 			self.model.deltas[target-1].data -= self.lr*self.clip(grad)
+			#print("After", self.model.deltas[target-1])
 		elif target == 0:
+			#print("Before", self.model.deltas[initial - 1])
 			self.model.deltas[initial - 1].data += self.lr*self.clip(grad)
+			#print("After", self.model.deltas[initial - 1])
 		else:
-			#print("Gradients", grad)
 			self.model.deltas[initial - 1].data += self.lr * 0.5 * self.clip(grad)
 			self.model.deltas[target - 1].data -= self.lr * 0.5 * self.clip(grad)
 
@@ -136,6 +145,7 @@ class Explain(object):
 		best_loss = np.inf
 		best_deltas = None
 		ema = None
+		iter_from_best = 0
 		while True:
 		
 			# Stopping condition
@@ -146,28 +156,31 @@ class Explain(object):
 			if iter % consecutive_steps == 0:
 				initial, target = np.random.choice(num_clusters, 2, replace = False)
 
+			#print(initial, target)
+
 			# point and target
 			p = x_means[initial]
 			t = y_means[target]
 
 			explained, d = tgt(p, initial, target)
 
-			
-
-			transformed = self.model.Encode_ones(explained.float())
-			# print(transformed.shape, t.shape)			
+			transformed = self.model.Encode_ones(explained.float())			
 
 			loss = criterion(transformed, t) + lambda_global*torch.mean(torch.abs(d))
 			deltas_grad = torch.autograd.grad(loss, [d])
 
 			grad = deltas_grad[0]
+			#print("grad", grad)
 
 			if iter == 0:
 				ema = loss.item()
 			else:
 				ema = discount * ema + (1 - discount) * loss.item()
 
+			print("iter: {}, ema: {}, initial {}, target {}".format(iter, ema, initial, target))
+
 			if ema < best_loss - tol:
+				# iter_from_best = 0
 				best_iter = iter
 				best_loss = ema
 				best_deltas = torch.empty((num_clusters - 1, n_input))
@@ -175,12 +188,18 @@ class Explain(object):
 					best_deltas[i,:] = param.detach()
 				if verbose:
 					print("Retrieving the best deltas...")
-					print("iter: {}, ema: {}, initial {}, target {}".format(iter, ema, initial, target))# best_iter, best_loss)); print(best_deltas); print(list(tgt.parameters()))
+					print("iter: {}, ema: {}, initial {}, target {}".format(iter, ema, initial, target))
+			else:
+				iter_from_best+=1
+
+			# if iter_from_best > 80:
+			# 	optimizer.decay_lr()
+			# 	iter_from_best = 0
+			# 	print("Learning rate decayed to {}".format(optimizer.lr))
 
 			optimizer.step(initial, target, grad)
 			
 			iter += 1
-			#break
 
 		return best_deltas, tgt
 

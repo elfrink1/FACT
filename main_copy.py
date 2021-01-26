@@ -21,6 +21,16 @@ def load_model(model_type, input=None, pretrained_path=None):
 	model = Model.Initialize(model_type = model_type, input_ = input, pretrained_path = pretrained_path)
 	return model
 
+# def get_data(features_path, labels_path=None, labels=True):
+# 	features_path = os.path.join(features_path)
+# 	x = pd.read_csv(features_path).to_numpy()
+# 	if labels_path != None and labels == True:
+# 		labels_path = os.path.join(labels_path)
+# 		y = pd.read_csv(labels_path).to_numpy()
+# 	elif labels == True:
+# 		y = x[:,-1]
+# 		x = x[:,:-1]
+# 	return x, y
 def get_data(data_path):
 	features_path = os.path.join(data_path, 'X.tsv')
 	labels_path = os.path.join(data_path, 'y.tsv')
@@ -39,7 +49,7 @@ def find_epsilon(Explainer, input_=None, indices=None):
 	for epsilon in epsilons:
 		mean_, min_, max_ = Explainer.eval_epsilon(input_, indices, epsilon)
 		print("epsilon {}, mean {}, min {}, max {}".format(epsilon, mean_, min_, max_))
-		if mean_ == 1.0 and min_ == 1.0 and max_== 1.0:
+		if mean_ >= 0.98 and min_ >= 0.98 and max_>= 0.98:
 			print("The epsilon value is {}".format(epsilon))
 			return epsilon
 
@@ -50,8 +60,6 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 	os.makedirs(os.path.join(args.exp_path, 'deltas'), exist_ok=True)
 	K = [1, 3, 5, 7, 9, 11, 13]
 	config = SimpleNamespace(**json.load(open('./configs/tgt.json', 'r')))
-	config.learning_rate = 0.01
-	config.consecutive_steps = 5
 	out = np.zeros((len(K), 5))
 	input_dim = x.shape[1]
 	model = Explainer.model
@@ -160,8 +168,7 @@ if __name__ == "__main__":
 	parser.add_argument('--pretrained_path',
 					  default='./Models/vae.pt',
 					  type=str,
-					  help='Path to the trained model',
-					  choices=['vae', 'autoencoder'])
+					  help='Path to the trained model')
 	parser.add_argument('--data_path',
 					  default='./ELDR/Housing/Data',
 					  type=str,
