@@ -8,6 +8,7 @@ matplotlib.rc("lines", markersize = 16)
 from matplotlib.path import Path
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
+from eldr.explain.explain_cs import TGT
 import numpy as np
 import torch
 
@@ -110,7 +111,8 @@ def plot_metrics(a, b, name = "plot_metrics.png", fontsize = 55, labelsize = 40)
     #plt.show()
     plt.close()
 
-def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = None, num_points = 50, name = "plot_explanation.png", feature_names = None):
+def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = None, num_points = 50, name = "plot_explanation.png", feature_names = None,
+                    logit_gammas = None):
     
     if not torch.is_tensor(x):
         x = torch.tensor(x)
@@ -118,19 +120,38 @@ def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = Non
         deltas = torch.tensor(deltas)
     if not torch.is_tensor(data_rep):
         data_rep = torch.tensor(data_rep)
+    if (logit_gammas is not None) and not torch.is_tensor(logit_gammas):
+        logit_gammas = torch.tensor(logit_gammas)
 
     # Find the explanation from c1 to c2
-    if c1 == 0:
-        d = deltas[c2 - 1]
-    elif c2 == 0:
-        d = -1.0 * deltas[c1 - 1]
-    else:
-        d = -1.0 * deltas[c1 - 1] + deltas[c2 - 1]
     
-    if k is not None:
-        d = truncate(d, k)
-        
-    d = torch.reshape(d, (1, d.shape[0]))
+    # if logit_gammas is not None:
+    #     g_intermediate = torch.exp(-logit_gammas[c1 - 1])
+    #     logit_g_scaling = logit_gammas[c2] - logit_gammas[c1]
+    # else:
+    #     g_intermediate = torch.ones_like(deltas[0])
+    #     logit_g_scaling = torch.zeros_like(deltas[0])
+
+    # if c1 == 0:
+    #     d = deltas[c2 - 1]
+    # elif c2 == 0:
+    #     d = -1.0 * g_intermediate * deltas[c1 - 1]
+    # else:
+    #     d = -1.0 * g_intermediate * deltas[c1 - 1] + deltas[c2 - 1]
+    
+    # if k is not None:
+    #     d = truncate(d, k)
+    #     if logit_gammas is not None:
+    #         logit_g_scaling = truncate(logit_g_scaling, k)
+    
+    # g_scaling = torch.exp(logit_g_scaling)
+    # g_scaling = torch.reshape(g_scaling, (1, g_scaling.shape[0]))
+    # d = torch.reshape(d, (1, d.shape[0]))
+
+    n_dim = deltas.shape[1]
+    n_clusters = deltas.shape[0] + 1
+    use_scaling = (logit_gammas is not None)
+    tgt = TGT(n_dim,n_clusters,init_deltas=deltas, use_scaling=use_scaling, init_gammas_logit=logit_gammas)
    
     # Visualize the data
     fig, ax = plt.subplots(figsize=(20, 30))
@@ -157,32 +178,41 @@ def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = Non
     
         # Load the model
         #sess, rep, X, D = load_model()
-        d_zeros = np.zeros(d.shape)
+        # d_zeros = np.zeros(d.shape)
     
         # Plot the chosen points before perturbing them
-        y_initial = model.Encode(points_initial + d_zeros)#sess.run(rep, feed_dict={X: points_initial, D: d_zeros})
+        y_initial = model.Encode(points_initial)#sess.run(rep, feed_dict={X: points_initial, D: d_zeros})
         plt.scatter(y_initial[:,0], y_initial[:,1], marker = "v", c = "magenta")
     
         # Plot the chosen points after perturbing them
-        y_after = model.Encode(points_initial + (sign*d)) #sess.run(rep, feed_dict={X: points_initial, D: sign * d})
+        if use_scaling:
+            points_after, d, logit_g = tgt(points_initial, initial, target, k)
+        else:
+            points_after, d = tgt(points_initial, initial, target, k)
+        y_after = model.Encode(points_after) #sess.run(rep, feed_dict={X: points_initial, D: sign * d})
         plt.scatter(y_after[:,0], y_after[:,1], marker = "v", c = "red")
     
         plt.title("Mapping from Group " + str(initial) + " to Group " + str(target) + "\n Correctness - " + str(np.round(a[initial, target], 3)) + ", Coverage - " + str(np.round(b[initial, target], 3)))
     
     ax = plt.subplot(3, 1, 3)
 
-    feature_index = np.array(range(d.shape[1]))
-    plt.scatter(feature_index, d)
+    feature_index = np.array(range(n_dim))
+    d = torch.reshape(d, (1, d.shape[0])).detach()
+    plt.scatter(feature_index, d, label='delta')
+    if use_scaling:
+        logit_g = torch.reshape(logit_g, (1, logit_g.shape[0])).detach()
+        plt.scatter(feature_index, logit_g, label='gamma')
+    plt.legend()
     plt.title("Explanation for Group " + str(c1) + " to Group " + str(c2))
     plt.ylabel("Change applied")
     if feature_names is None:
         plt.xlabel("Feature Index")
     else:
         plt.xlabel("Feature")
-        plt.xticks(range(d.shape[1]), feature_names, rotation=90, fontsize = 40)
+        plt.xticks(range(n_dim), feature_names, rotation=90, fontsize = 40)
 
     plt.savefig(name)
-    #plt.show()
+    plt.show()
     plt.close()
 
 

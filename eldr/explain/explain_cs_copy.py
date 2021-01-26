@@ -38,12 +38,7 @@ class TGT(nn.Module):
 				
 		if k is not None:
 			d = truncate(d, k)
-		# if initial == 0:
-		# 	d = self.deltas[target - 1]
-		# elif target == 0:
-		# 	d = -1.0 * self.deltas[initial - 1]
-		# else:
-		# 	d = -1.0 * self.deltas[initial - 1] + self.deltas[target - 1]
+		
 
 		if self.use_scaling:
 			return self.gammas[cluster]*x + self.deltas[cluster]

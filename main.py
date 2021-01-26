@@ -55,6 +55,7 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 	out = np.zeros((len(K), 5))
 	input_dim = x.shape[1]
 	model = Explainer.model
+	use_scaling = Explainer.use_scaling
 	c = 0
 	for k in K:
 		out[c, 0] = k
@@ -66,14 +67,20 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 			for trial in range(1):
 				config.lambda_global = lg
 				print("config ", config, "k ", k)
-				deltas, _ = Explainer.explain(config)
-				a, b = Explainer.metrics(x, indices, deltas, epsilon, k = k) 
+				if use_scaling:
+					deltas, logit_gammas, _ = Explainer.explain(config)
+					a, b = Explainer.metrics(x, indices, deltas, epsilon, k = k, logit_gammas=logit_gammas) 
+				else:
+					deltas, _ = Explainer.explain(config)
+					a, b = Explainer.metrics(x, indices, deltas, epsilon, k = k) 
 				val = np.mean(a)
 				if val > best_val:
 					best_val = val
 					out[c, 1] = best_val
 					out[c, 2] = np.mean(b)
 					np.save(os.path.join(deltas_path, "deltas" + str(k) + ".npy"), deltas)
+					if use_scaling:
+						np.save(os.path.join(deltas_path, "logit_gammas" + str(k) + ".npy"), logit_gammas)
 		c += 1
 	#saving the metrics output file
 	np.savetxt(os.path.join(args.exp_path, "out.csv"), out, delimiter = ",")
@@ -103,7 +110,7 @@ def main(args):
 					kmeans.labels_,
 					y)
 	print("Find the best epsilon...")
-	Explainer = Explain(model, means, centers)
+	Explainer = Explain(model, means, centers, use_scaling=args.use_scaling)
 	epsilon = find_epsilon(Explainer=Explainer,
 							input_=x, 
 							indices=indices)
@@ -146,11 +153,15 @@ if __name__ == "__main__":
 	parser.add_argument('--num_clusters',
 					  default=6,
 					  type=int,
-					  help='Numeber of Clusters')
+					  help='Number of Clusters')
 	parser.add_argument('--exp_name',
 						default='Housing',
 						type=str,
 						help='Name of the experiment. Everything will be saved at ./experiments/$exp_name$')
+	parser.add_argument('--use_scaling',
+						default=False,
+						type=bool,
+						help='Use extended explanations with exponential scaling')
 
 	args = parser.parse_args()
 	main(args)
