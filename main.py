@@ -21,6 +21,13 @@ def load_model(model_type, input=None, pretrained_path=None):
 	model = Model.Initialize(model_type = model_type, input_ = input, pretrained_path = pretrained_path)
 	return model
 
+def get_xy_data(data_path):
+	features_path = os.path.join(data_path, 'X.tsv')
+	labels_path = os.path.join(data_path, 'y.tsv')
+	x = pd.read_csv(features_path, sep='\t').values
+	y = pd.read_csv(labels_path, sep='\t').values
+	return x, y
+
 def get_data(features_path, labels_path=None, labels=True):
 	features_path = os.path.join(features_path)
 	x = pd.read_csv(features_path).to_numpy()
@@ -43,7 +50,7 @@ def find_epsilon(Explainer, input_=None, indices=None):
 	for epsilon in epsilons:
 		mean_, min_, max_ = Explainer.eval_epsilon(input_, indices, epsilon)
 		print("epsilon {}, mean {}, min {}, max {}".format(epsilon, mean_, min_, max_))
-		if mean_ == 1.0 and min_ == 1.0 and max_== 1.0:
+		if mean_ >= 0.95 and min_ >= 0.95 and max_>= 0.95:
 			print("The epsilon value is {}".format(epsilon))
 			return epsilon
 	return epsilon
@@ -69,7 +76,7 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 		out[c, 3] = np.mean(a)
 		out[c, 4] = np.mean(b)
 		for lg in [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]:
-			for trial in range(1):
+			for trial in range(5):
 				config.lambda_global = lg
 				print("config ", config, "k ", k)
 				if use_scaling:
@@ -93,8 +100,11 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 def main(args):
 	args.exp_path = os.path.join('./experiments', args.exp_name)
 	os.makedirs(args.exp_path, exist_ok=True)
-
-	x, y = get_data(args.data_path)
+	
+	if args.xydata:
+		x, y = get_xy_data(args.data_path)
+	else:
+		x, y = get_data(args.data_path)
 
 	model = load_model(args.model_type,
 						input=x,
@@ -103,7 +113,7 @@ def main(args):
 	#get the low-dimensional representation
 	data_rep = model.Encode(x)
 
-	kmeans = KMeans(n_clusters = args.num_clusters).fit(data_rep)
+	kmeans = KMeans(n_clusters = args.num_clusters, random_state=0).fit(data_rep)
 
 	means, centers, indices = plot_groups(x,
 										data_rep.numpy(),
@@ -158,6 +168,10 @@ if __name__ == "__main__":
 					  default=6,
 					  type=int,
 					  help='Number of Clusters')
+	parser.add_argument('--xydata',
+						type=bool,
+						default=True,
+						help='Labels and data stored seperately')
 	parser.add_argument('--exp_name',
 						default='Housing',
 						type=str,

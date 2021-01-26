@@ -67,7 +67,7 @@ def plot_groups(x, data_rep, num_clusters, labels, contour = None, name = "plot_
         plt.colorbar()
 
     plt.savefig(name)
-    #plt.show()
+    plt.show()
     plt.close()
 
     return means, centers, indices
