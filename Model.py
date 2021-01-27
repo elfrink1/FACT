@@ -1,6 +1,6 @@
 from eldr.models.autoencoder import *
 from eldr.models.vae.train_torch import *
-from eldr.train import train_ae
+from eldr.train import train_ae, train_scvis
 from eldr.data import *
 from torch.utils.data import Dataset, DataLoader
 from types import SimpleNamespace
@@ -22,7 +22,7 @@ class Model(object):
 
 
 	@classmethod
-	def Initialize(cls, model_type, input_, pretrained_path=None):
+	def Initialize(cls, model_type, input_, pretrained_path=None, config=None):
 		if model_type != 'autoencoder' and model_type != 'vae':
 			sys.exit("model_type wrong, provide right model type from: [autoencoder, vae]")
 
@@ -49,11 +49,11 @@ class Model(object):
 						output_dim=config.output_dim,\
 						decoder_shape=config.decoder_shape,\
 						learning_rate=config.learning_rate,\
-				 		batch_size=config.batch_size,\
-				 		min_epochs=config.min_epochs,\
-				 		stopping_epochs=config.stopping_epochs,\
-				 		tol=config.tol,\
-				 		eval_freq=config.eval_freq)
+						batch_size=config.batch_size,\
+						min_epochs=config.min_epochs,\
+						stopping_epochs=config.stopping_epochs,\
+						tol=config.tol,\
+						eval_freq=config.eval_freq)
 
 			else:	
 				#Use the pretrained model placed at the pretrained_path
@@ -64,7 +64,18 @@ class Model(object):
 
 		if model_type == 'vae':
 			if pretrained_path == None:
-				pass
+				print("Wait, the model is in training")
+				model = train_scvis(
+									dataset = config.dataset,
+    								features_path=config.features_path,
+    								labels_path=config.labels_path,
+    								model_dir=config.model_dir,
+    								batch_size=config.batch_size,
+    								min_epochs=config.min_epochs,
+    								stopping_epochs=config.stopping_epochs,
+    								tol=config.tol,
+    								eval_freq=config.eval_freq,
+    								lr=config.lr,)
 
 			else:
 				print("Loading the pretrained model...")
@@ -88,11 +99,15 @@ class Model(object):
 					recons[i,:] = recon.data.view(-1,2)
 				else:
 					means, log_stds = self.model.encoder(input)
-					recon = sample_reparameterize(means, torch.exp(log_stds))
-					recons[i,:] = recon.data.view(-1,2)
+# 					recon = sample_reparameterize(means, torch.exp(log_stds))
+					recons[i,:] = means.data.view(-1,2)
 
 			
 		return recons
 
 	def Encode_ones(self, input):
-		     return self.model.encoder(input)
+		if self.model_type != 'vae':
+			return self.model.encoder(input)
+		else:
+			means, log_stds = self.model.encoder(input)
+			return means

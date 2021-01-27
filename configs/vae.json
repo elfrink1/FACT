@@ -1,0 +1,12 @@
+{
+	"features_path" : "./Reproduction/Housing/Data/X.tsv",
+    "labels_path" : "./Reproduction/Housing/Data/y.tsv",
+    "model_dir" : "./Models/",
+    "batch_size" : 128,
+    "min_epochs" : 200,
+    "stopping_epochs" : 25,
+    "tol" : 0.001,
+    "eval_freq" : 1,
+    "lr" : 0.001
+    
+}

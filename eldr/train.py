@@ -86,12 +86,12 @@ def train_ae(input_,\
 
 
 def train_scvis(
-    dataset="housing",
-    features_path="/content/FACT/Reproduction/Housing/Data/X.tsv",
-    labels_path="/content/FACT/Reproduction/Housing/Data/y.tsv",
-    model_dir='/content/FACT/Models/',
+    dataset = "housing",
+    features_path="./Reproduction/Housing/Data/X.tsv",
+    labels_path="./Reproduction/Housing/Data/y.tsv",
+    model_dir='./Models/',
     batch_size=128,
-    min_epochs=50,
+    min_epochs=200,
     stopping_epochs=25,
     tol=0.001,
     eval_freq=1,
@@ -123,11 +123,11 @@ def train_scvis(
   optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.001)
 
   # Tracking variables for finding best model
-  best_val_elbo = float('inf')
+  best_val_elbo = -1.0*float('inf')
   best_epoch_idx = 0
   iteration = 0
 
-  plotter = Plotter('cost')
+  plotter = Plotter(dataset)
 
   for epoch in range(1, min_epochs + 1):
 
@@ -146,12 +146,13 @@ def train_scvis(
     print("###")
 
     # Saving best model
-    if epoch_val_elbo < best_val_elbo:
+    if epoch_val_elbo > best_val_elbo:
       best_val_elbo = epoch_val_elbo
       best_epoch_idx = epoch
+      print("Saving the best model at epoch {}".format(best_epoch_idx))
       torch.save(model, os.path.join(model_dir, "scvis_{0}.pt".format(dataset)))
 
-  best = torch.load(os.path.join(model_dir, "scvis_{0}.pt".format(dataset)))
+  best = torch.load(os.path.join(model_dir, "scvis_{0}.pt".format(dataset)), map_location=torch.device('cpu'))
   plotter.plot()
 
   return best

@@ -16,20 +16,14 @@ def poly2labels(data_rep, vertices):
 				
 	return labels    
 	
-# def truncate(values, k):
-#
-# 	values = np.squeeze(values)
-# 	idx = (-np.abs(values)).argsort()[:k]
-# 	values_aprox = np.zeros(values.shape)
-# 	values_aprox[idx] = values[idx]
-# 	return values_aprox
+def truncate(values, k):
+	if not torch.is_tensor(values):
+		values = torch.tensor(values).float()
 
-def truncate(d, k):
-	d = torch.squeeze(d)
-	vals, idx = torch.topk(-torch.abs(d), k)
-	values_aprox = torch.zeros_like(d)
-	for i in idx.numpy():
-		values_aprox[i] = d[i]
+	values = torch.squeeze(values)
+	idx = (-torch.abs(values)).argsort()[:k]
+	values_aprox = torch.zeros(values.shape)
+	values_aprox[idx] = values[idx]
 	return values_aprox
 	
 def load(deltas, k, initial, target):
