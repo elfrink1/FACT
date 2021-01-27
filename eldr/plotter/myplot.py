@@ -108,7 +108,7 @@ def plot_metrics(a, b, name = "plot_metrics.png", fontsize = 55, labelsize = 40)
     ax.cax.tick_params(labelsize = labelsize)
 
     plt.savefig(name)
-    #plt.show()
+    plt.show()
     plt.close()
 
 def plot_explanation(model, x, data_rep, indices, deltas, a, b, c1, c2,  k = None, num_points = 50, name = "plot_explanation.png", feature_names = None,
@@ -243,5 +243,5 @@ def plot_change(deltas, deltas_original, name = "plot_similarity.png", feature_n
     plt.colorbar()
     
     plt.savefig(name)
-    #plt.show()
+    plt.show()
     plt.close()

@@ -98,6 +98,7 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 	np.savetxt(os.path.join(args.exp_path, "out.csv"), out, delimiter = ",")
 
 def main(args):
+	print(args)
 	args.exp_path = os.path.join('./experiments', args.exp_name)
 	os.makedirs(args.exp_path, exist_ok=True)
 	
@@ -115,15 +116,33 @@ def main(args):
 
 	kmeans = KMeans(n_clusters = args.num_clusters, random_state=0).fit(data_rep)
 
-	means, centers, indices = plot_groups(x,
-										data_rep.numpy(),
-										args.num_clusters,
-										kmeans.labels_,
-										name = os.path.join(args.exp_path, 'clusters.png'))
+	# means, centers, indices = plot_groups(x,
+	# 									data_rep.numpy(),
+	# 									args.num_clusters,
+	# 									kmeans.labels_,
+	# 									name = os.path.join(args.exp_path, 'clusters.png'))
 
-	plot_difference(os.path.join(args.exp_path, 'labels.png'),
-					kmeans.labels_,
-					y)
+	labels = kmeans.labels_
+	n = x.shape[0]
+	num_clusters = args.num_clusters
+	cluster = -1.0 * np.ones((n))
+	indices = [[]] * num_clusters
+	centers = [[]] * num_clusters
+	means = [[]] * num_clusters
+	for i in range(num_clusters):
+		indices[i] = []
+		for j in range(n):
+			if labels[j] == i:
+				cluster[j] = i
+				indices[i].append(j)
+		means[i] = np.mean(x[indices[i], :], axis = 0)
+		centers[i] = np.mean(data_rep.numpy()[indices[i], :], axis = 0)
+	centers = np.array(centers)
+	means = np.array(means)
+
+	# plot_difference(os.path.join(args.exp_path, 'labels.png'),
+	# 				kmeans.labels_,
+	# 				y)
 	print("Find the best epsilon...")
 	Explainer = Explain(model, means, centers, use_scaling=args.use_scaling)
 	epsilon = find_epsilon(Explainer=Explainer,
@@ -169,16 +188,14 @@ if __name__ == "__main__":
 					  type=int,
 					  help='Number of Clusters')
 	parser.add_argument('--xydata',
-						type=bool,
-						default=True,
+						action='store_true',
 						help='Labels and data stored seperately')
 	parser.add_argument('--exp_name',
 						default='Housing',
 						type=str,
 						help='Name of the experiment. Everything will be saved at ./experiments/$exp_name$')
 	parser.add_argument('--use_scaling',
-						default=False,
-						type=bool,
+						action='store_true',
 						help='Use extended explanations with exponential scaling')
 
 	args = parser.parse_args()
