@@ -9,20 +9,32 @@ import os
 import sys
 from eldr.models.vae.utils import sample_reparameterize
 
-
-
-
-
-
-
 class Model(object):
 	def __init__(self, model, model_type):
+		"""
+		Model class initialzes the model used for learning low-dimensional representations
+		model:  trained model (vae or autoencoder)
+		model_type: vae or encoder
+
+		Methods of the class:
+		a) Encode(input_): maps the input_ to low-dimensional latent space. This is used for the whole dataset.
+		b) Encode_ones(input) : maps a batch (input) to low-dimensional latent space
+		"""
 		self.model = model
 		self.model_type = model_type
 
 
 	@classmethod
 	def Initialize(cls, model_type, input_, pretrained_path=None, config=None):
+		"""
+		Initialize the low-dimensional representation learning model
+
+		model_type: either autoencoder or vae (variational autoencoder)
+		input_ : data to train the model on (used in case of autoencoder)
+		pretrained_path : path to the pretrained model
+		config: Python Namespace object with setting information to train the models
+
+		"""
 		if model_type != 'autoencoder' and model_type != 'vae':
 			sys.exit("model_type wrong, provide right model type from: [autoencoder, vae]")
 
@@ -40,9 +52,7 @@ class Model(object):
 				print(config)
 
 				"""
-				train the model and return the best model, for now 
-				we have the training script. But we have to write the trainer class
-				to work for every model
+				train the model and return the best model.
 				"""
 				model = train_ae(input_,\
 						encoder_shape=config.encoder_shape,\
@@ -58,7 +68,7 @@ class Model(object):
 			else:	
 				#Use the pretrained model placed at the pretrained_path
 				#for now the whole model is saved after training, so 
-				#this doesn't require any args. Is this a better way to save?
+				#this doesn't require any args while loading.
 				print("Loading the pretrained model...")
 				model = torch.load(pretrained_path)
 
@@ -99,7 +109,6 @@ class Model(object):
 					recons[i,:] = recon.data.view(-1,2)
 				else:
 					means, log_stds = self.model.encoder(input)
-# 					recon = sample_reparameterize(means, torch.exp(log_stds))
 					recons[i,:] = means.data.view(-1,2)
 
 			

@@ -16,12 +16,28 @@ from eldr.plotter.myplot import *
 from eldr.explain.explain_cs import *
 
 #load the model
-
 def load_model(model_type, input=None, pretrained_path=None):
+	"""
+	returns the Model class instance to transform input to low-dimensional representation
+
+	model_type: type of the model (vae or autoencoder)
+	input(numpy.array or torch.tensor): input to train the model on
+	pretrained_path: path to the pretrained model
+
+	This script trainss the explanations. We suggest providing the pretrained_path
+
+	"""
 	model = Model.Initialize(model_type = model_type, input_ = input, pretrained_path = pretrained_path)
 	return model
 
 def get_xy_data(data_path):
+	"""
+		read and returns the data (expect the structure: data_path > X.tsv, y.tsv)
+		data_path: path to the dataset
+
+		X: features
+		y = labels
+	"""
 	features_path = os.path.join(data_path, 'X.tsv')
 	labels_path = os.path.join(data_path, 'y.tsv')
 	x = pd.read_csv(features_path, sep='\t').values
@@ -29,6 +45,18 @@ def get_xy_data(data_path):
 	return x, y
 
 def get_data(features_path, labels_path=None, labels=True):
+	"""
+		read and returns the data
+
+		features_path: path to the features
+		labels_path: explicit path to the labels
+		if labels_path is provided and labels == True:
+			features and labels are returned
+		else if labels_path None:
+			labels are in the last column of the features csv file
+			returns features and labels
+
+	"""
 	features_path = os.path.join(features_path)
 	x = pd.read_csv(features_path).to_numpy()
 	if labels_path != None and labels == True:
@@ -40,12 +68,31 @@ def get_data(features_path, labels_path=None, labels=True):
 	return x, y
 
 def plot_difference(path, labels, y):
+	"""
+		Plot the differences between the clusters for the y_value
+
+		path: path to save the figure
+		labels: Identifiers for the groups (different clusters)
+		y (numpy.ndarray): feature for which to inspect the difference between the groups
+	"""
 	fig, ax = plt.subplots(figsize=(10,10))
 	sns.boxplot(ax=ax, x=labels, y = np.squeeze(y))
 	ax.set(xlabel="Group", ylabel="Label")
 	ax.get_figure().savefig(path)
 
 def find_epsilon(Explainer, input_=None, indices=None):
+	"""
+	epsilon is hyperparameter that defines the metrics: correctness and coverage
+	We increase the epsilon value from 0 to 2 till we get correctness and coverage to be greater than 0.95 
+	for the self-similarity condition.
+
+	Explainer (eldr.exlain object)
+	input_ = data (features)
+	indices: array of len #groups with the index which input_ belongs to which group
+
+	returns best_epsilon
+
+	"""
 	epsilons = np.linspace(0, 2.0, num=100).tolist()
 	for epsilon in epsilons:
 		mean_, min_, max_ = Explainer.eval_epsilon(input_, indices, epsilon)
@@ -56,6 +103,11 @@ def find_epsilon(Explainer, input_=None, indices=None):
 	return epsilon
 
 def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
+	"""
+
+
+	"""
+
 	# Columns are:  K, TGT-correctness, TGT-coverage, DBM-correctness, DBM-coverage
 	print("Training the TGT and comparing DBM...")
 	deltas_path = os.path.join(args.exp_path, 'deltas')
