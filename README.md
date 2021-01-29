@@ -2,7 +2,7 @@
 
 > Plumb, Gregory, et al. "Explaining Groups of Points in Low-Dimensional Representations." International Conference on Machine Learning. PMLR, 2020.
 
-This repository contains the implementation and reproduction of experiments presented in the above paper. The original paper proposes **Transitive Global Translations**, an algorithm to explain the differences between the _group of points_ in a low-dimensional space. In this repository, the claims and the results of the paper are studied and validated. Furthermore, we extend TGT with a scaling mechanism.
+This repository contains the implementation and reproduction of experiments presented in the above paper. The original paper proposes **Transitive Global Translations**, an algorithm to explain the differences between the _group of points_ in a low-dimensional space. In this repository, the claims and the results of the paper are studied and validated. The code provided by Plumb et al. was first tested. Next, it was reimplemented in PyTorch, and TGT was extended with a scaling mechanism.
 
 This README is organized as follows:
 
