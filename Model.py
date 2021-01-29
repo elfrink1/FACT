@@ -77,15 +77,15 @@ class Model(object):
 				print("Wait, the model is in training")
 				model = train_scvis(
 									dataset = config.dataset,
-    								features_path=config.features_path,
-    								labels_path=config.labels_path,
-    								model_dir=config.model_dir,
-    								batch_size=config.batch_size,
-    								min_epochs=config.min_epochs,
-    								stopping_epochs=config.stopping_epochs,
-    								tol=config.tol,
-    								eval_freq=config.eval_freq,
-    								lr=config.lr,)
+									features_path=config.features_path,
+									labels_path=config.labels_path,
+									model_dir=config.model_dir,
+									batch_size=config.batch_size,
+									min_epochs=config.min_epochs,
+									stopping_epochs=config.stopping_epochs,
+									tol=config.tol,
+									eval_freq=config.eval_freq,
+									lr=config.lr,)
 
 			else:
 				print("Loading the pretrained model...")

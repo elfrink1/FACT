@@ -12,6 +12,16 @@ from eldr.misc import truncate
 class TGT(nn.Module):
 	def __init__(self, n_dim, num_clusters, init_deltas=None, use_scaling=False, init_gammas_logit=None):
 		super(TGT, self).__init__()
+		"""
+			TGT class for Transitive Global Translations Algorithm
+
+			n_dim: dimensionality of the input space
+			num_clusters: number of clusters in the latent space representation
+			init_deltas: deltas to initialize the translationparameters of the TGT
+			use_scaling: boolean Flag (set to True to use scaling)
+			init_gammas_logit: gammas to initialize the scaling parameters of the TGT
+
+		"""
 		self.use_scaling = use_scaling
 		if init_deltas is None:
 			self.deltas = nn.ParameterList([nn.Parameter(torch.zeros(n_dim)) for _ in range(num_clusters - 1)])
@@ -27,7 +37,12 @@ class TGT(nn.Module):
 	def forward(self, x, initial, target, k=None):
 		"""x: Init tensor
 		initial:  int for initial cluster
-		target: int for target cluster"""
+		target: int for target cluster
+		k: int for sparsity level
+
+		"""
+		#for definitions for different initial and target conditions, refer to the original paper
+		#and the report
 		if self.use_scaling:
 			if initial == target:
 				d = torch.zeros((1, x.shape[1]))
@@ -68,6 +83,15 @@ class TGT(nn.Module):
 
 class Optimizer(object):
 	def __init__(self, model, lr=0.001, clip_val=5.0):
+
+		"""
+			Optimizer class to train the TGT
+
+			model(nn.Module): TGT class instance
+			lr(float): learning rate to train the TGT
+			clip_val(float): float value for gradient clipping
+
+		"""
 		self.model = model
 		self.lr = lr
 		self.clip_val = clip_val
@@ -76,11 +100,27 @@ class Optimizer(object):
 		return torch.clamp(torch.squeeze(grad), -1.0*self.clip_val, self.clip_val)
 
 	def update(self, index, factor, delta_grad, gamma_grad=None):
+		"""
+			update the parameters
+			index: index of the parameters to update
+			factor: (+1, or -1) to update the parameters (again refer to the paper and the report)
+			deltas_grad: gradient of the loss w.r.t. delta parameter
+			gamma_grad: gradient of the loss w.r.t. gamma parameter
+		"""
 		self.model.deltas[index - 1].data += factor*self.lr*self.clip(delta_grad)
 		if gamma_grad is not None:
 			self.model.logit_gammas[index - 1].data += factor*self.lr*self.clip(gamma_grad)
 		
 	def step(self, initial, target, delta_grad, gamma_grad=None):
+		"""
+			Gradient descent step
+
+		initial: int (index) of the initial group for TGT
+		target: int (index) of the target group for TGT
+		deltas_grad: gradient of the loss w.r.t. delta parameter
+		gamma_grad: gradient of the loss w.r.t. gamma parameter
+
+		"""
 		if initial == 0:
 			# self.model.deltas[target-1].data -= self.lr*self.clip(grad)
 			self.update(target, -1, delta_grad, gamma_grad)
@@ -98,6 +138,16 @@ class Optimizer(object):
 	 
 class Explain(object):
 	def __init__(self, model, means, centers, use_scaling=False):
+
+		"""
+		Explain class for Explaining Low Dimensional Representations
+
+		model (Model class instance)
+		means: means of the clusters in the original space
+		centers: centers(centroids) of the clusters in the latent space
+		use_scaling: boolean Flag (set to True to use scaling in the TGT Algorithm)
+
+		"""
 		self.model = model
 		self.means = means
 		self.centers = centers
@@ -105,8 +155,14 @@ class Explain(object):
 
 
 	def explain(self, config, k=None):
-		
+		"""
+			train the TGT Algorithm
+			config: Namespace instance describing the settings for training the TGT
+			k: int for sparsity level
 
+		"""
+		
+		#set the relevant settings for training TGT
 		lambda_global = config.lambda_global
 		init_mode = config.init_mode
 		consecutive_steps = config.consecutive_steps
@@ -138,6 +194,7 @@ class Explain(object):
 				deltas[i - 1,:] = x_means[i] - x_means[0]
 
 
+		#initialize the TGT instance
 		tgt = TGT(n_input, num_clusters, init_deltas=deltas, use_scaling=self.use_scaling)
 
 		print(list(tgt.parameters()))
@@ -149,10 +206,12 @@ class Explain(object):
 		# for param in self.model.model.parameters():
 		# 	param.requires_grad = False
 
+		#define the loss_criterion and the optimizer
 		criterion = nn.MSELoss(reduction="sum")
 
 		optimizer = Optimizer(tgt, lr=learning_rate, clip_val=clip_val)
 
+		#define variables to track the training process
 		iter = 0
 		best_iter = 0
 		best_loss = np.inf
@@ -173,6 +232,7 @@ class Explain(object):
 			p = x_means[initial]
 			t = y_means[target]
 
+			#perform the TGT step
 			if self.use_scaling:
 				explained, d, logit_g = tgt(p, initial, target)
 			else:
@@ -186,8 +246,10 @@ class Explain(object):
 			if self.use_scaling:
 				regularization_term += lambda_global*torch.mean(torch.abs(logit_g))
 
+			#define the compressed sensing based loss function
 			loss = criterion(transformed, t) + regularization_term
 
+			#take the gradients of the loss w.r.t parameters
 			if self.use_scaling:
 				delta_grad, gamma_grad = torch.autograd.grad(loss, [d, logit_g])
 			else:
@@ -201,6 +263,7 @@ class Explain(object):
 			else:
 				ema = discount * ema + (1 - discount) * loss.item()
 
+			#save the best deltas and gammas
 			if ema < best_loss - tol:
 				best_iter = iter
 				best_loss = ema
@@ -215,10 +278,12 @@ class Explain(object):
 					print("Retrieving the best deltas...")
 					print("iter: {}, ema: {}, initial {}, target {}".format(iter, ema, initial, target))# best_iter, best_loss)); print(best_deltas); print(list(tgt.parameters()))
 
+			#update the TGT parameters
 			optimizer.step(initial, target, delta_grad, gamma_grad)
 			
 			iter += 1
 			#break
+		#return the best found parameters of the TGT
 		if self.use_scaling:
 			# Gammas are returned as logits
 			return best_deltas, best_gammas, tgt
@@ -227,6 +292,16 @@ class Explain(object):
 
 
 	def metrics(self, x, indices, deltas, epsilon, k = None, logit_gammas=None):
+		"""
+			get the metrics: correctness and coverage
+			x: input data 
+			indices(list of lists): indices list defining which input belongs to which cluster
+			deltas: translation parameters of the TGT
+			epsilon(float): hyper-parameter to define the correctness and coverage metrics
+			k(int): sparsity level
+			logit_gammas: scaling parameters of the TGT
+
+		"""
 		if not torch.is_tensor(x):
 			x = torch.tensor(x)
 
@@ -238,10 +313,10 @@ class Explain(object):
 
 		model = self.model
 
+		#initialize the TGT instance
 		tgt = TGT(n_input, num_clusters, init_deltas=deltas, init_gammas_logit=logit_gammas, use_scaling=self.use_scaling)
 
-		# Define the objective function
-
+		#get the metrics
 		correctness = np.zeros((num_clusters, num_clusters))
 		coverage = np.zeros((num_clusters, num_clusters))
 		for initial in range(num_clusters):
@@ -297,6 +372,8 @@ class Explain(object):
 
 	def eval_epsilon(self, x, indices, epsilon):
 
+		#evaluate the epsilon using the self-similarity condition
+
 		model = self.model
 		
 		input_dim = x.shape[1]
@@ -314,6 +391,7 @@ class Explain(object):
 	# e_more should be a sparser vector than e_less
 	# counts the percentage of e_more's explanation that is in features chosen by e_less
 	def similarity(self, e_more, e_less):
+		#simialrity metric between the parameters for different sparsity level
 		difference = 0
 		for i in range(e_more.shape[0]):
 			if e_less[i] != 0:
@@ -322,8 +400,9 @@ class Explain(object):
 
 
 	def apply(self, indices, c1, d_g, num_points = 200):
-
-
+		#apply the change (perfrorm the TGT from to the points from group c1(int))
+		#d_g = deltas
+		#num_points(int): how many points to apply the algorithm to
 		model = self.model
 		x = self.means
 		y = self.centers
