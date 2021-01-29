@@ -34,7 +34,7 @@ It is recommended to adhere to the following workflow for using this repository.
 +-- trainr.py (Script to train low dimensional representations)
 ```
 ## Running the experiments
-We provide the trained models and explanations. To run, navigate to the corresponding experiment in the ./experiments dir, and follow the .ipynb notebook.
+We provide the trained models and explanations. To run, navigate to the corresponding experiment in the `./experiments` dir, and follow the .ipynb notebook.
 
 We provide the following environments file:
 | file_name | env_name|
