@@ -104,22 +104,39 @@ def find_epsilon(Explainer, input_=None, indices=None):
 
 def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 	"""
+		train the TGT Algorithm
 
+		Explainer: eldr.explain instance
+		x: input 
+		epsilon: hyperparameter to define the correctness and the coverage
+		indices: list containing indices of the input for each group
+		exp_mean: DBM explanations
+
+	train the explanations for different level of sparsity, compare with the DBM
+	and log the metrics into a file called out.csv
 
 	"""
 
-	# Columns are:  K, TGT-correctness, TGT-coverage, DBM-correctness, DBM-coverage
 	print("Training the TGT and comparing DBM...")
+	#exp_path to save all the relevant information
 	deltas_path = os.path.join(args.exp_path, 'deltas')
 	os.makedirs(os.path.join(args.exp_path, 'deltas'), exist_ok=True)
+
+	#different level of sparsity for TGT
 	K = [1, 3, 5, 7, 9, 11, 13]
+	#TGT uses a config file
 	config = SimpleNamespace(**json.load(open('./configs/tgt.json', 'r')))
 	config.learning_rate = 0.01
 	config.consecutive_steps = 5
+	#initialize the metrics file with columns for 
+	#K, TGT-correctness, TGT-coverage, DBM-correctness, DBM-coverage
 	out = np.zeros((len(K), 5))
+
+	#set some basic parameters 
 	input_dim = x.shape[1]
 	model = Explainer.model
 	use_scaling = Explainer.use_scaling
+
 	c = 0
 	for k in K:
 		out[c, 0] = k
@@ -127,6 +144,7 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 		a, b = Explainer.metrics(x, indices, exp_mean, epsilon, k = k)
 		out[c, 3] = np.mean(a)
 		out[c, 4] = np.mean(b)
+		#Train for these values of regularization parameter lambda_global
 		for lg in [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]:
 			for trial in range(5):
 				config.lambda_global = lg
@@ -138,6 +156,7 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 					deltas, _ = Explainer.explain(config)
 					a, b = Explainer.metrics(x, indices, deltas, epsilon, k = k) 
 				val = np.mean(a)
+				#if the current metrics are better, save the explanations
 				if val > best_val:
 					best_val = val
 					out[c, 1] = best_val
@@ -150,22 +169,42 @@ def train(args, Explainer, x=None, epsilon=None, indices=None, exp_mean=None):
 	np.savetxt(os.path.join(args.exp_path, "out.csv"), out, delimiter = ",")
 
 def main(args):
+	"""
+`		set everything to train the TGT
+
+	args: 
+	model_type(str): vae or autoencoder
+	pretrained_path(str): path to the said pretrained model
+	data_path(str):  path where the data is stored
+	num_clusters(int): How many clsuters are discernible in the latent representations of the data
+	xydata(flag denotes True): Is your features and labels stored in separate files?
+	exp_name(str): Name of the experiment, explanations will be saved in a directory with this name
+	use_scaling(flag denotes True): Do you want to use scaling in TGT?
+	"""
 	print(args)
+
+	#set the exp_path
 	args.exp_path = os.path.join('./experiments', args.exp_name)
 	os.makedirs(args.exp_path, exist_ok=True)
 	
+	#load the data (features and labels)
+	#if not xydata: the last column of the csv data file is labels
 	if args.xydata:
 		x, y = get_xy_data(args.data_path)
 	else:
 		x, y = get_data(args.data_path)
 
+
+
+	#load the pretrained model (vae or autoencoder)
 	model = load_model(args.model_type,
 						input=x,
 						pretrained_path=args.pretrained_path)
 
-	#get the low-dimensional representation
+	#get the low-dimensional representation of the features x
 	data_rep = model.Encode(x)
 
+	#fit KMeans to the low-dimensional representations
 	kmeans = KMeans(n_clusters = args.num_clusters, random_state=0).fit(data_rep)
 
 	# means, centers, indices = plot_groups(x,
@@ -174,6 +213,7 @@ def main(args):
 	# 									kmeans.labels_,
 	# 									name = os.path.join(args.exp_path, 'clusters.png'))
 
+	#define the centers, means, and the labels of the clusters(groups)
 	labels = kmeans.labels_
 	n = x.shape[0]
 	num_clusters = args.num_clusters
@@ -195,7 +235,10 @@ def main(args):
 	# plot_difference(os.path.join(args.exp_path, 'labels.png'),
 	# 				kmeans.labels_,
 	# 				y)
+
+	#find the best epsilon for the low-dimensional representations
 	print("Find the best epsilon...")
+	#Initialize the eldr.explain instance
 	Explainer = Explain(model, means, centers, use_scaling=args.use_scaling)
 	epsilon = find_epsilon(Explainer=Explainer,
 							input_=x, 
@@ -203,20 +246,19 @@ def main(args):
 
 	#epsilon = 0.045
 
+	#get the explanations for the DBM baseline
 	means = torch.tensor(means).float()
 	exp_mean = torch.zeros((args.num_clusters - 1, x.shape[1]))
 	for i in range(args.num_clusters - 1):
 		exp_mean[i, :] = means[i + 1] - means[0]
+
+	#train the explanations
 	train(args, 
 		Explainer=Explainer,
 		x=x,
 		epsilon=epsilon, 
 		indices=indices,
 		exp_mean=exp_mean)
-
-
-
-
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(

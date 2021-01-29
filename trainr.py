@@ -13,9 +13,19 @@ from Model import *
 
 
 def main(args):
+	"""
+		Either train the low-dimensional representation learning function and
+		visualize the representations
+		or load the pretrained model to visualize the representations
+
+	"""
+
+	#load the config file for the corresponding model_type
 	config_path = os.path.join('./configs', args.model_type, '.json')
 	config = SimpleNamespace(**json.load(open(config_path, 'r')))
 
+
+	#define the features_path, labels_path, model_dir, and the dataset
 	config.features_path = os.path.join(args.data_path, 'X.tsv')
 	config.labels_path = os.path.join(args.data_path, 'y.tsv')
 	config.model_dir = args.model_dir

@@ -17,6 +17,7 @@ def poly2labels(data_rep, vertices):
 	return labels    
 	
 def truncate(values, k):
+	#truncate the deltas(values) to k sparsity level
 	if not torch.is_tensor(values):
 		values = torch.tensor(values).float()
 
@@ -27,7 +28,7 @@ def truncate(values, k):
 	return values_aprox
 	
 def load(deltas, k, initial, target):
-
+	#load the deltas for given initial and target groups for k sparsity level
 	if initial == 0:
 		d = deltas[target - 1]
 	elif target == 0:
