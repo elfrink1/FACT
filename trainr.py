@@ -21,7 +21,7 @@ def main(args):
 	"""
 
 	#load the config file for the corresponding model_type
-	config_path = os.path.join('./configs', args.model_type, '.json')
+	config_path = os.path.join('./configs', args.model_type + '.json')
 	config = SimpleNamespace(**json.load(open(config_path, 'r')))
 
 

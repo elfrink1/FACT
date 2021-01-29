@@ -67,6 +67,7 @@ class Plotter(object):
     plt.legend(loc="best", fontsize=12, frameon=False)
     plt.tight_layout()
     plt.savefig('./' + self.name + '.png')
+    plt.show()
 
 
 class VAE(nn.Module):
