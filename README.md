@@ -47,7 +47,7 @@ To install the environment:
 conda env create -f $file_name.yml
 conda activate $env_name
 ```
-
+Note that these environments do not include scvis, as it cannot be installed through conda. The installation process is documented in the scvis github.
 As described in the workflow above, `trainr.py` trains the low-dimensional representation learning function.
 The usage is described as below:
 
