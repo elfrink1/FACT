@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
 
-BASE_PATH='./..'
+cd ./../
 
-python $BASE_PATH/main.py --exp_name=Breast_Scaling --use_scaling --num_clusters=3 --data_path=$BASE_PATH/Data/breast/ --pretrained_path=$BASE_PATH/Models/scvis_breast.pt --xydata
+python ./main.py --exp_name=Breast_Scaling --use_scaling --num_clusters=3 --data_path=./Data/breast/ --pretrained_path=./Models/scvis_breast.pt --xydata
