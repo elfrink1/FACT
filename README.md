@@ -9,8 +9,8 @@ This README is organized as follows:
 - Workflow
 - Navigating the repository
 - Running the experiments
-- Contributors
 - Acknowledgements
+- Contributors
 - References
 
 ## Workflow
@@ -24,7 +24,7 @@ It is recommended to adhere to the following workflow for using this repository.
 .
 +-- Data (Data files used in the experiments)
 +-- ELDR-reproduction (Reproduction of experiments from author's code)
-+-- Environment (YAML environment files for Conda)
++-- Environments (YAML environment files for Conda)
 +-- Models (Pretrained models from our experiments)
 +-- configs (JSON config files for TGT, AE and VAE models)
 +-- eldr (Our Pytorch implementation)
@@ -36,7 +36,7 @@ It is recommended to adhere to the following workflow for using this repository.
 ## Running the experiments
 We provide the trained models and explanations. To run, navigate to the corresponding experiment in the `./experiments` dir, and follow the .ipynb notebook.
 
-We provide the following environments file:
+We provide the following environments files at `./Environments`:
 | file_name | env_name|
 |-----------|---------|
 |lisa_tensorflow_env.yml | tffact|
@@ -44,7 +44,7 @@ We provide the following environments file:
 
 To install the environment:
 ```
-conda env create -f $filename.yml
+conda env create -f $file_name.yml
 conda activate $env_name
 ```
 
