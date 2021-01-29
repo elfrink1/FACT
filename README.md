@@ -6,12 +6,23 @@ This repository contains the implementation and reproduction of experiments pres
 
 This README is organized as follows:
 
+- Initial Setup
 - Workflow
 - Navigating the repository
 - Running the experiments
 - Acknowledgements
 - Contributors
 - References
+
+## Initial Setup
+
+This repository depends on two external packages for reproducting experiments from the original codebase. Please run the following command in the root directory of this repo:
+
+1. `git clone https://github.com/GDPlumb/ELDR.git`.
+2. `cd ./ELDR-reproduction && git clone https://github.com/shahcompbio/scvis.git`
+3. `cd ./ELDR-reproduction/scvis && python setup.py install`
+
+Please note that in file `ELDR/Code/load_scvis.py`, you might have to replace the config path containing `/scvis/lib/scvis/config/model_config.yaml` to `./../scvis/lib/scvis/config/model_config.yaml`.
 
 ## Workflow
 
@@ -33,7 +44,9 @@ It is recommended to adhere to the following workflow for using this repository.
 +-- main.py (Main entry file for running experiments (training TGT) with CLI)
 +-- trainr.py (Script to train low dimensional representations)
 ```
+
 ## Running the experiments
+
 We provide the trained models and explanations. To run, navigate to the corresponding experiment in the `./experiments` dir, and follow the .ipynb notebook.
 
 We provide the following environments files at `./Environments`:
@@ -43,10 +56,12 @@ We provide the following environments files at `./Environments`:
 |pytorch_env.yml| factai|
 
 To install the environment:
+
 ```
 conda env create -f $file_name.yml
 conda activate $env_name
 ```
+
 Note that these environments do not include scvis, as it cannot be installed through conda. The installation process is documented in the scvis github.
 As described in the workflow above, `trainr.py` trains the low-dimensional representation learning function.
 The usage is described as below:
@@ -72,6 +87,7 @@ optional arguments:
                         exp_name. Trained model will be saved with this name.
                         (default: random)
 ```
+
 The script `main.py` trains the explanations between the groups. It's usage description is as follows:
 
 ```
@@ -99,8 +115,8 @@ optional arguments:
 ```
 
 ## Acknowledgements
-We appreciate the original authors for making the code public. We would like to thank the lead author Gregory Plumb for promptly replying to the emails for suggestions and help. Finally, a great thanks to Christina Winkler for the feedback throughout the project.
 
+We appreciate the original authors for making the code public. We would like to thank the lead author Gregory Plumb for promptly replying to the emails for suggestions and help. Finally, a great thanks to Christina Winkler for the feedback throughout the project.
 
 ## Contributors
 
