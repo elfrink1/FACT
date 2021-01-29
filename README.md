@@ -25,12 +25,12 @@ It is recommended to adhere to the following workflow for using this repository.
 +-- Data (Data files used in the experiments)
 +-- ELDR-reproduction (Reproduction of experiments from author's code)
 +-- Environments (YAML environment files for Conda)
-+-- Models (Pretrained models from our experiments)
++-- Models (Pretrained scvis models from our experiments)
 +-- configs (JSON config files for TGT, AE and VAE models)
 +-- eldr (Our Pytorch implementation)
 +-- experiments (IPython notebooks of our extension experiments)
-+-- scripts (Bash scripts for running experiments with different datasets)
-+-- main.py (Main entry file for running experiments with CLI)
++-- scripts (Bash scripts for running TGT experiments with different datasets, calls main.py)
++-- main.py (Main entry file for running experiments (training TGT) with CLI)
 +-- trainr.py (Script to train low dimensional representations)
 ```
 ## Running the experiments
@@ -39,7 +39,7 @@ We provide the trained models and explanations. To run, navigate to the correspo
 We provide the following environments files at `./Environments`:
 | file_name | env_name|
 |-----------|---------|
-|lisa_tensorflow_env.yml | tffact|
+|local_tensorflow_env.yml | 2factai|
 |pytorch_env.yml| factai|
 
 To install the environment:
